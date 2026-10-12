@@ -8,8 +8,8 @@ use crate::sim::record;
 /// Dueling update (after the overlap and spot struggle updates, before the pacemaker). Reads the candidate lists
 /// built by `ai::update_around_horses_param` this frame.
 ///
-/// Entry, per horse in index order, for a horse that is not dueling, has never dueled and is not finished: the first
-/// partner in its `compete_fight_near` (list order) with
+/// Entry, per horse in index order, for a horse that is not dueling and has never dueled (one that crossed the goal
+/// this frame still can): the first partner in its `compete_fight_near` (list order) with
 /// - `compete_fight_candidate_continue_time >= TargetContinueTime`;
 /// - the pre-update speed gap `speed_gap_abs < SpeedGap`;
 /// - both HP >= `HpPer2` % of max HP;
@@ -28,7 +28,7 @@ pub fn update(race: &mut Race) {
     let hp_ok = |h: &crate::sim::horse::Horse, per: i32| h.hp >= h.max_hp * per as f32 * 0.01;
     for i in 0..n {
         let h = &race.horses[i];
-        if h.is_compete_fight || h.compete_fight_count > 0 || h.is_finished {
+        if h.is_compete_fight || h.compete_fight_count > 0 {
             continue;
         }
         let partner = h.compete_fight_near.iter().map(|&k| h.ai.around_horses[k]).find(|a| {

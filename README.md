@@ -12,14 +12,14 @@ Admittedly, this is probably just one of many upcoming race simulators, as AI ha
 
 ## Accuracy
 
-Checked frame by frame against 1620 real race replays:
+Checked frame by frame against 1838 real race replays:
 
 | | |
 |---|---|
-| Races matching every frame | 1620 (100%) |
-| Same finish order | 1620 (100%) |
+| Races matching every frame | 1838/1838 (100%) |
+| Same finish order | 1838/1838 (100%) |
 | Exact HP at the goal, per uma | 100% |
-| Simulation time | ~12 ms per race |
+| Simulation time | ~10 ms per race |
 
 I suspect that, due to a relatively small sample size, some of the simulation rules work by accident, so there will likely be edge cases. I will keep collecting room match data to test against more races and fix these as they come up.
 

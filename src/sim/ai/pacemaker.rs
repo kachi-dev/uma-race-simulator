@@ -5,13 +5,15 @@ use crate::sim::race::Race;
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Pacemaker {
     pub horse: Option<usize>,
-    /// From the July 2026 update on ([`update`]): the candidate's section at the last re-pick, the section pick, and the
+    /// From the July 2026 update on ([`update`]): the leader's section at the last re-pick, the section pick, and the
     /// number of consecutive re-picks that saw an overall leader not of the most-forward style.
     pub section: i32,
     pub section_pick: Option<usize>,
     pub not_most_forward_count: i32,
     /// Under the leader override: the leader pacemaker's section when it was last re-checked.
     pub leader_section: i32,
+    /// Whether the leader override was on last frame.
+    pub overriding: bool,
 }
 
 impl Pacemaker {
@@ -25,16 +27,18 @@ impl Pacemaker {
 /// previous horse update), re-picked every frame.
 ///
 /// From the 2026-07 update on:
-/// - The pick is re-taken only when that candidate enters a new section, from the gate frame (section 1) up to
-///   `PositionKeepEndSection`; in between the pacemaker is kept.
+/// - The pick is re-taken only when the overall leader (by last frame's order) enters a new section, from the gate
+///   frame (section 1) up to `PositionKeepEndSection`; in between the pacemaker is kept. Usually the leader is the
+///   candidate; one race needs the leader's section where they differ.
 /// - Each re-pick that sees an overall leader not of the most-forward style counts +1 and keeps the old section pick;
 ///   the gate-frame pick never counts (the order there is just horse index). A re-pick with a most-forward-style
 ///   leader resets the count only once it has reached the threshold below; below it, the count is kept.
-///   While the count is >= `PacemakerChangeTopHorseNotMostForwardStyleCount` and such a
-///   horse leads, the leader is the pacemaker; once a most-forward-style horse leads again (checked every frame), the
-///   section pick is. Between re-picks a leader pacemaker hands over to a new leader only when the pacemaker enters a
-///   new section (fitted on one race, where the new leader entered it on the same frame, so tracking the leader's
-///   section instead fits equally).
+/// - While the count is >= `PacemakerChangeTopHorseNotMostForwardStyleCount` and such a horse leads, the leader is
+///   the pacemaker; once a most-forward-style horse leads again (checked every frame), the section pick is, re-taken
+///   from the current candidate on the frame the override ends (fitted on one race).
+/// - Between re-picks a leader pacemaker hands over to a new leader only when the pacemaker enters a new section
+///   (fitted on one race, where the new leader entered it on the same frame, so tracking the leader's section instead
+///   fits equally).
 ///
 /// The `PacemakerChange*Range` params are not used.
 pub fn update(race: &mut Race) {
@@ -46,7 +50,7 @@ pub fn update(race: &mut Race) {
     }
     let lead = crate::sim::field::horse_at_order(race, 0);
     let not_most = race.field.pacemaker.horse.is_some() && lead.is_some_and(|l| race.horses[l].horse_data.running_style != most);
-    let sec = crate::sim::horse::calc_section(race, cand);
+    let sec = crate::sim::horse::calc_section(race, lead.unwrap_or(cand));
     let kp = &race.data.param.PositionKeep;
     let count = kp.PacemakerChangeTopHorseNotMostForwardStyleCount;
     let pmc = &mut race.field.pacemaker;
@@ -63,6 +67,10 @@ pub fn update(race: &mut Race) {
         }
     }
     let leader_override = not_most && pmc.not_most_forward_count as f32 >= count;
+    if pmc.overriding && !leader_override {
+        pmc.section_pick = Some(cand);
+    }
+    pmc.overriding = leader_override;
     let prev = pmc.horse;
     pmc.horse = if leader_override { lead } else { pmc.section_pick };
     // Between re-picks, a leader pacemaker hands over to the current leader only on entering a new section.
