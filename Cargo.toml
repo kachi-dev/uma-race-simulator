@@ -13,3 +13,10 @@ base64 = "0.22"
 
 [profile.dev]
 opt-level = 1
+
+# Whole-program optimization for timing runs and production: about 10% faster simulate, twice the build time.
+#   cargo build --profile fast
+[profile.fast]
+inherits = "release"
+lto = "fat"
+codegen-units = 1

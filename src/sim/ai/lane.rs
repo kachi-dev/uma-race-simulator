@@ -511,7 +511,7 @@ fn calc_lane_move_speed(race: &mut Race, i: usize, dt: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sim::ai::{test_race, update_around_horses_param};
+    use crate::sim::ai::{snapshot_scan_view, test_race, update_around_horses_param};
 
     fn setup(pos: &[(f32, f32)], phase: Phase) -> Race<'static> {
         let mut race = test_race(pos.len());
@@ -521,6 +521,7 @@ mod tests {
             race.horses[i].hp = 1000.0;
             race.horses[i].phase = phase;
         }
+        snapshot_scan_view(&mut race);
         for i in 0..pos.len() {
             update_around_horses_param(&mut race, i, 0.0666);
         }

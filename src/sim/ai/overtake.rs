@@ -104,10 +104,11 @@ pub fn update_overtake_target_have_time(race: &mut Race, i: usize, dt: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sim::ai::{test_race, update_around_horses_param};
+    use crate::sim::ai::{snapshot_scan_view, test_race, update_around_horses_param};
     use crate::sim::ai::lane::{RaceLanePlanner, LanePlanner};
 
     fn scan(race: &mut Race) {
+        snapshot_scan_view(race);
         for i in 0..race.horses.len() {
             update_around_horses_param(race, i, 0.0666);
         }

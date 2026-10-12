@@ -292,9 +292,12 @@ fn add_prev_activate_skill_detail(race: &mut Race, r: SkillDetailRef) {
 /// Per-frame update of one skill: active details run; otherwise the skill cooldown ticks and the first detail whose
 /// trigger fires activates. Details with their own cooldown are handled separately at the end.
 pub fn skill_base_update(race: &mut Race, i: usize, s: usize, dt: f32) {
+    if is_dormant(race, i, s) {
+        return;
+    }
     let nd = race.horses[i].skill_manager.skills[s].details.len();
     let rf = |d: usize| SkillDetailRef { horse: i, skill: s, detail: d };
-    if race.horses[i].is_complete_first_update {
+    if race.horses[i].is_complete_first_update && !race.horses[i].skill_manager.prev_activated_details.is_empty() {
         for d in 0..nd {
             let l = &mut race.horses[i].skill_manager.prev_activated_details;
             if let Some(k) = l.iter().position(|x| *x == rf(d)) {
@@ -354,6 +357,27 @@ pub fn skill_base_update(race: &mut Race, i: usize, s: usize, dt: f32) {
     }
 }
 
+/// Whether `skill_base_update` would change nothing: idle, no cooldown running, and every detail's next trigger
+/// check (the precondition while it is pending) is asleep (see [`trigger::Wake`]) or empty.
+fn is_dormant(race: &Race, i: usize, s: usize) -> bool {
+    let h = &race.horses[i];
+    let sm = &h.skill_manager;
+    let b = &sm.skills[s];
+    if !sm.prev_activated_details.is_empty() || !sm.reserved_skill_ids.is_empty() || !(b.cool_down_time <= 0.0) {
+        return false;
+    }
+    b.details.iter().all(|d| {
+        let next = if d.is_need_pre_trigger_check { &d.pre_trigger } else { &d.trigger };
+        !d.is_activated
+            && !d.is_use_skill_detail_cool_down_time
+            && (!b.is_activate_enable
+                || match next {
+                    SkillTriggerCollection::Null => true,
+                    SkillTriggerCollection::Collection { wake, .. } => wake.is_asleep(race, i),
+                })
+    })
+}
+
 /// Ticks the detail's own cooldown; true once it is over.
 fn detail_check_cool_down(race: &mut Race, r: SkillDetailRef, dt: f32) -> bool {
     let det = detail_mut(race, r);
@@ -368,15 +392,20 @@ fn detail_check_cool_down(race: &mut Race, r: SkillDetailRef, dt: f32) -> bool {
 
 /// Checks the triggers and activates the detail. The precondition latches: once met it is not checked again.
 pub fn detail_update_trigger_and_activate(race: &mut Race, r: SkillDetailRef, dt: f32) -> bool {
-    let id = skill_id(race, r);
-    let skip_pre = r.detail == 0 && race.horses[r.horse].skill_manager.reserved_skill_ids.contains(&id);
-    if !skip_pre && detail(race, r).is_need_pre_trigger_check {
-        if !trigger::collection_update(race, r, TriggerSlot::Pre, dt) {
+    let reserved = detail_is_reserved_random_activate(race, r);
+    let det = detail(race, r);
+    let check_pre = !reserved && det.is_need_pre_trigger_check;
+    // Nothing to update (a detail without conditions, e.g. an unused second detail).
+    if !check_pre && matches!(det.trigger, SkillTriggerCollection::Null) {
+        return false;
+    }
+    if check_pre {
+        if !trigger::collection_update(race, r, TriggerSlot::Pre, dt, reserved) {
             return false;
         }
         detail_mut(race, r).is_need_pre_trigger_check = false;
     }
-    if !trigger::collection_update(race, r, TriggerSlot::Main, dt) {
+    if !trigger::collection_update(race, r, TriggerSlot::Main, dt, reserved) {
         return false;
     }
     detail_activate(race, r);

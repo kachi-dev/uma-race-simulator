@@ -62,6 +62,7 @@ fn first_frame(race: &mut Race) -> bool {
 /// Returns whether every horse has finished.
 fn frame(race: &mut Race, dt: f32) -> bool {
     let n = race.horses.len();
+    ai::snapshot_scan_view(race);
     for i in 0..n {
         pre_update(race, i, dt);
     }

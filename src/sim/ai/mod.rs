@@ -121,8 +121,33 @@ pub fn create_ai(race: &mut Race, i: usize) {
     h.ai.near_horses = vec![0; n_around];
 }
 
+/// What the around-horse scan reads of each horse, packed (perf: the scan reads every other horse, every horse,
+/// every frame).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ScanView {
+    pub distance: f32,
+    pub lane_distance: f32,
+    pub last_speed: f32,
+    pub is_straight_last: bool,
+}
+
+/// Fills `field.scan_view` from every horse. The fields are only written while horses move or by course events, so
+/// one copy taken before the pre-update loop is exact for every scan in it.
+pub fn snapshot_scan_view(race: &mut Race) {
+    let mut v = std::mem::take(&mut race.field.scan_view);
+    v.clear();
+    v.extend(race.horses.iter().map(|h| ScanView {
+        distance: h.distance,
+        lane_distance: h.lane_distance,
+        last_speed: h.last_speed,
+        is_straight_last: is_straight_last(h),
+    }));
+    race.field.scan_view = v;
+}
+
 /// Scans every other horse: gaps, near / visible lists, front and side blockers, lane space,
-/// compete-fight candidates and the surround flags. Runs before any horse moves, so it sees start-of-frame positions.
+/// compete-fight candidates and the surround flags. Runs before any horse moves, so it sees start-of-frame positions
+/// (read from `field.scan_view`, see [`snapshot_scan_view`]).
 pub fn update_around_horses_param(race: &mut Race, i: usize, dt: f32) {
     let data = race.data;
     let p = &data.param;
@@ -144,8 +169,10 @@ pub fn update_around_horses_param(race: &mut Race, i: usize, dt: f32) {
     let vis_dist = visible_distance(h);
     let self_straight_last = is_straight_last(h);
     let block = &p.Block;
+    let s = &p.Surrounded;
+    let view = &race.field.scan_view;
     for k in 0..around_horses.len() {
-        let o = &race.horses[around_horses[k].info];
+        let o = &view[around_horses[k].info];
         let a = &mut around_horses[k];
         a.distance_gap = o.distance - my_dist;
         a.distance_gap_abs = abs_keep_neg_zero(a.distance_gap);
@@ -153,13 +180,17 @@ pub fn update_around_horses_param(race: &mut Race, i: usize, dt: f32) {
         a.lane_gap_abs = abs_keep_neg_zero(a.lane_gap);
         a.speed_gap = my_speed - o.last_speed;
         a.speed_gap_abs = abs_keep_neg_zero(a.speed_gap);
+        // Surround: the game stops testing a flag once it is set; the tests are pure, so a branch-free OR is the same.
+        scan.surround_out |= (s.DistanceGapAbs1 >= a.distance_gap_abs) & (a.lane_gap >= 0.0) & (s.LaneGap1 >= a.lane_gap);
+        scan.surround_ahead |= (a.distance_gap > 0.0) & (s.DistanceGap2 >= a.distance_gap) & (s.LaneGapAbs2 >= a.lane_gap_abs);
+        scan.surround_behind |= (0.0 > a.distance_gap) & (a.distance_gap >= -s.DistanceGap2) & (s.LaneGapAbs2 >= a.lane_gap_abs);
         // Near: branch-free store (count <= k < len, and entries past the count are never read).
         near_horses[scan.near_horse_count as usize] = k;
         scan.near_horse_count += (!(a.distance_gap_abs > p.Near.DistanceThreshold) & !(a.lane_gap_abs > p.Near.LaneDistanceThreshold)) as i32;
         // Compete-fight candidates: close, side by side, and either horse on the final straight.
         let lane_ok = p.CompeteFight.LaneGap >= a.lane_gap_abs;
         let dist_far = p.CompeteFight.DistanceGap < a.distance_gap_abs;
-        let straight = self_straight_last || is_straight_last(o);
+        let straight = self_straight_last || o.is_straight_last;
         if dist_far || !lane_ok || !straight {
             if let Some(pos) = cf_list.iter().position(|&x| x == k) {
                 cf_list.remove(pos);
@@ -208,7 +239,7 @@ pub fn update_around_horses_param(race: &mut Race, i: usize, dt: f32) {
     h.ai.near_horses = near_horses;
     h.ai.visibility.visible_horses = visible_horses;
     h.compete_fight_near = cf_list;
-    update_surrounded(p, &mut h.ai);
+    (h.ai.is_surround_out, h.ai.is_surround_ahead, h.ai.is_surround_behind) = (scan.surround_out, scan.surround_ahead, scan.surround_behind);
 }
 
 /// The scalar outputs of `update_around_horses_param`, accumulated locally (see there).
@@ -221,6 +252,9 @@ struct AroundScan {
     out_lane_space: f32,
     near_horse_count: i32,
     visible_horse_count: i32,
+    surround_out: bool,
+    surround_ahead: bool,
+    surround_behind: bool,
 }
 
 /// `|x|`, but -0.0 stays -0.0 (unlike `f32::abs`), as in the game.
@@ -261,19 +295,6 @@ pub fn is_visible(v: f32, a: &AroundHorse) -> bool {
     // Evaluated in f64 as one expression.
     let w = (((a.distance_gap as f64 / v as f64) * 0.638888896f32 as f64 + 0.111111112f32 as f64) * 0.5) as f32;
     !(a.lane_gap_abs > w)
-}
-
-/// Sets the three surround flags: a horse alongside on the outside, one ahead, one behind.
-fn update_surrounded(p: &ParamDefine, ai: &mut Ai) {
-    let s = &p.Surrounded;
-    // The game stops testing a flag once it is set; the tests are pure, so a branch-free OR is the same and cheaper.
-    let (mut s1, mut s2, mut s3) = (false, false, false);
-    for a in &ai.around_horses {
-        s1 |= (s.DistanceGapAbs1 >= a.distance_gap_abs) & (a.lane_gap >= 0.0) & (s.LaneGap1 >= a.lane_gap);
-        s2 |= (a.distance_gap > 0.0) & (s.DistanceGap2 >= a.distance_gap) & (s.LaneGapAbs2 >= a.lane_gap_abs);
-        s3 |= (0.0 > a.distance_gap) & (a.distance_gap >= -s.DistanceGap2) & (s.LaneGapAbs2 >= a.lane_gap_abs);
-    }
-    (ai.is_surround_out, ai.is_surround_ahead, ai.is_surround_behind) = (s1, s2, s3);
 }
 
 /// Time since the goal; switches `active_lane_planner` to OverRun after 1 s.
@@ -531,6 +552,7 @@ mod tests {
         place(&mut race, 3, 100.5, 0.25); // inside, 0.5 m: side block in, in-space 0.05
         place(&mut race, 4, 99.5, 0.20); // inside, -0.5 m: later side-block-in match wins; space stays 0.05
         place(&mut race, 5, 98.0, 0.30); // behind beyond 1.05 m: isBack, ignored except near
+        snapshot_scan_view(&mut race);
         update_around_horses_param(&mut race, 0, 0.0666);
         let ai = &race.horses[0].ai;
         assert_eq!(block_horse_front(&race, 0), Some(1));
