@@ -34,6 +34,7 @@ pub fn run(race: &mut Race) {
             race::update_distance_diff_max(race);
         }
         course::event_manager_update(race);
+        record::record_spans(race);
         record_timer += -DT;
         // `f32::from_bits(1)` is float.Epsilon.
         if !(f32::from_bits(1) < record_timer) || is_end {

@@ -2,7 +2,7 @@
 
 use crate::sim::race::Race;
 use crate::sim::ai::{self, temptation};
-use crate::api::{event_kind, Event, Frame, HorseFrame, HorseResult, SimOutput};
+use crate::api::{event_kind, span_kind, Event, Frame, HorseFrame, HorseResult, SimOutput, Span};
 
 /// Recorded race data, un-quantized.
 #[derive(Clone, Debug, Default)]
@@ -13,6 +13,37 @@ pub struct Recorder {
     pub events: Vec<Event>,
     pub results: Vec<HorseResult>,
     pub distance_diff_max: f32,
+    pub spans: Vec<Span>,
+    /// Per horse and `span_kind`: start time of the open span.
+    pub open_spans: Vec<[Option<f32>; span_kind::COUNT]>,
+}
+
+/// Opens / closes `spans` from each horse's state after a step. Read-only on the race.
+pub fn record_spans(race: &mut Race) {
+    let t = race.recorder.cur_time;
+    let n = race.horses.len();
+    race.recorder.open_spans.resize(n, [None; span_kind::COUNT]);
+    for i in 0..n {
+        let h = &race.horses[i];
+        let on = !h.is_finished;
+        let state = [
+            on && h.is_compete_fight,
+            on && h.is_compete_top,
+            on && h.ai.temptation.is_temptation,
+            on && h.ai.block_horse.is_some(),
+            on && h.ai.conserve_power.accel_value > 0.0,
+        ];
+        for (kind, &s) in state.iter().enumerate() {
+            match (race.recorder.open_spans[i][kind], s) {
+                (None, true) => race.recorder.open_spans[i][kind] = Some(t),
+                (Some(start), false) => {
+                    race.recorder.spans.push(Span { horse: i, kind: kind as u8, start, end: t });
+                    race.recorder.open_spans[i][kind] = None;
+                }
+                _ => {}
+            }
+        }
+    }
 }
 
 pub fn record(race: &mut Race) {
@@ -69,5 +100,5 @@ pub fn add_horse_event(race: &mut Race, kind: u8, horse_index: usize, cur_time: 
 }
 
 pub fn into_output(race: Race) -> SimOutput {
-    SimOutput { frames: race.recorder.frames, results: race.recorder.results, events: race.recorder.events }
+    SimOutput { frames: race.recorder.frames, results: race.recorder.results, events: race.recorder.events, spans: race.recorder.spans }
 }

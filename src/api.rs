@@ -79,11 +79,13 @@ pub struct SkillInput {
 }
 
 /// Simulation output: frames, results and events, un-quantized. `replay::quantize` rounds it to recorded precision.
+/// `spans` are sim-only (not in replays).
 #[derive(Clone, Debug, Default)]
 pub struct SimOutput {
     pub frames: Vec<Frame>,
     pub results: Vec<HorseResult>,
     pub events: Vec<Event>,
+    pub spans: Vec<Span>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -126,6 +128,31 @@ pub struct Event {
     /// One of [`event_kind`].
     pub kind: u8,
     pub params: Vec<i32>,
+}
+
+/// A stretch of one horse in one state, sampled every step: from the first step in it to the first step out of it (or
+/// the horse's finish). Sim-only: replays carry start events at most.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Span {
+    pub horse: usize,
+    /// One of [`span_kind`].
+    pub kind: u8,
+    pub start: f32,
+    pub end: f32,
+}
+
+pub mod span_kind {
+    /// Dueling (追い比べ).
+    pub const DUEL: u8 = 0;
+    /// Spot struggle (位置取り争い).
+    pub const SPOT_STRUGGLE: u8 = 1;
+    /// Rushed (掛かり).
+    pub const RUSHED: u8 = 2;
+    /// A horse ahead in its lane caps its speed.
+    pub const BLOCKED: u8 = 3;
+    /// The released conserve-power accel boost.
+    pub const CONSERVE_POWER: u8 = 4;
+    pub const COUNT: usize = 5;
 }
 
 pub mod event_kind {

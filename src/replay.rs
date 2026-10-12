@@ -348,6 +348,7 @@ mod tests {
             frames: vec![crate::api::Frame { time: 0.0, horses: vec![HorseFrame::default(); 2] }],
             results: vec![HorseResult::default(); 2],
             events: vec![Event { time: 0.5, kind: 3, params: vec![1, 2] }],
+            spans: vec![],
         };
         let mut rep = quantize(&sim);
         assert_eq!(diff(&sim, &rep), None);
