@@ -27,8 +27,10 @@ impl Pacemaker {
 /// From the 2026-07 update on:
 /// - The pick is re-taken only when that candidate enters a new section, from the gate frame (section 1) up to
 ///   `PositionKeepEndSection`; in between the pacemaker is kept.
-/// - Each re-pick that sees an overall leader not of the most-forward style counts +1 (else the count resets) and
-///   keeps the old section pick. While the count is >= `PacemakerChangeTopHorseNotMostForwardStyleCount` and such a
+/// - Each re-pick that sees an overall leader not of the most-forward style counts +1 and keeps the old section pick;
+///   the gate-frame pick never counts (the order there is just horse index). A re-pick with a most-forward-style
+///   leader resets the count only once it has reached the threshold below; below it, the count is kept.
+///   While the count is >= `PacemakerChangeTopHorseNotMostForwardStyleCount` and such a
 ///   horse leads, the leader is the pacemaker; once a most-forward-style horse leads again (checked every frame), the
 ///   section pick is. Between re-picks a leader pacemaker hands over to a new leader only when the pacemaker enters a
 ///   new section (fitted on one race, where the new leader entered it on the same frame, so tracking the leader's
@@ -43,7 +45,7 @@ pub fn update(race: &mut Race) {
         return;
     }
     let lead = crate::sim::field::horse_at_order(race, 0);
-    let not_most = lead.is_some_and(|l| race.horses[l].horse_data.running_style != most);
+    let not_most = race.field.pacemaker.horse.is_some() && lead.is_some_and(|l| race.horses[l].horse_data.running_style != most);
     let sec = crate::sim::horse::calc_section(race, cand);
     let kp = &race.data.param.PositionKeep;
     let count = kp.PacemakerChangeTopHorseNotMostForwardStyleCount;
@@ -51,7 +53,11 @@ pub fn update(race: &mut Race) {
     let repick = pmc.horse.is_none() || sec > pmc.section && sec <= kp.PositionKeepEndSection;
     if repick {
         pmc.section = sec;
-        pmc.not_most_forward_count = if not_most { pmc.not_most_forward_count + 1 } else { 0 };
+        if not_most {
+            pmc.not_most_forward_count += 1;
+        } else if pmc.not_most_forward_count as f32 >= count {
+            pmc.not_most_forward_count = 0;
+        }
         if pmc.section_pick.is_none() || !not_most {
             pmc.section_pick = Some(cand);
         }

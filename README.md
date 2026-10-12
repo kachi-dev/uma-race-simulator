@@ -16,12 +16,12 @@ Checked frame by frame against 1620 real race replays:
 
 | | |
 |---|---|
-| Races matching every frame | 1618 (99.9%) |
-| Same finish order | 1618 (99.9%) |
-| Exact HP at the goal, per uma | 99.9% |
+| Races matching every frame | 1620 (100%) |
+| Same finish order | 1620 (100%) |
+| Exact HP at the goal, per uma | 100% |
 | Simulation time | ~12 ms per race |
 
-There will be edge-cases as I just don't have a large enough dataset to cover everything but I will continue my room match data collection to test against more races.
+I suspect that, due to a relatively small sample size, some of the simulation rules work by accident, so there will likely be edge cases. I will keep collecting room match data to test against more races and fix these as they come up.
 
 ## Usage
 

@@ -25,6 +25,6 @@
 | Course | Distance correction uses last frame's ratio | Distance correction uses **this** frame's ratio |
 
 ## Pacemaker
-The front uma of the most forward strategy, re-picked only when she enters a new section (sections 1–10). If another
-strategy leads the race at two re-picks in a row, the race leader becomes pacemaker until the most forward strategy
-leads again. The 10 m range parameters seem to be unused(?)
+The front uma of the most forward strategy, re-picked only when she enters a new section (sections 1-10). If another
+strategy leads the race at two re-picks (not necessarily in a row; the re-pick at the gate doesn't count), the race
+leader becomes pacemaker until the most forward strategy leads again, and only then does the count start over. 
