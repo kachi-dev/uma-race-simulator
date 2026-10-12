@@ -1,0 +1,98 @@
+{
+ "m_Enabled": 1,
+ "m_Name": "",
+ "courseParams": [
+  {
+   "_paramType": 0,
+   "_values": [
+    3,
+    200
+   ],
+   "_distance": 500.0
+  },
+  {
+   "_paramType": 0,
+   "_values": [
+    4,
+    200
+   ],
+   "_distance": 700.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    1,
+    2
+   ],
+   "_distance": 100.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    2,
+    2
+   ],
+   "_distance": 500.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    1,
+    1
+   ],
+   "_distance": 900.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    2,
+    1
+   ],
+   "_distance": 1200.0
+  },
+  {
+   "_paramType": 4,
+   "_values": [],
+   "_distance": 775.0
+  },
+  {
+   "_paramType": 5,
+   "_values": [],
+   "_distance": 785.0
+  },
+  {
+   "_paramType": 8,
+   "_values": [],
+   "_distance": 775.0
+  },
+  {
+   "_paramType": 9,
+   "_values": [],
+   "_distance": 785.0
+  },
+  {
+   "_paramType": 11,
+   "_values": [
+    10000,
+    375
+   ],
+   "_distance": 100.0
+  },
+  {
+   "_paramType": 11,
+   "_values": [
+    -15000,
+    450
+   ],
+   "_distance": 475.0
+  },
+  {
+   "_paramType": 11,
+   "_values": [
+    10000,
+    175
+   ],
+   "_distance": 975.0
+  }
+ ]
+}

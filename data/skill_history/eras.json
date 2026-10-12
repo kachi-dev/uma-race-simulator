@@ -1,0 +1,8 @@
+{
+  "_doc": "Skill data in effect for a replay date. Snapshots are alpha123/uma-tools umalator-global/skill_data.json at the given commit (alpha's processed format). Fields map to master skill_data: alternatives[i] = precondition_i/condition_i/float_ability_time_i (baseDuration)/ability_time_usage_i (durationScaling); effects[j] = ability_type_i_j (type), float_ability_value_i_j (modifier), ability_value_usage_i_j (scaling), target_type_i_j (target); wisdomCheck = activate_lot. NOT tracked by alpha: float_cooldown_time_i, target_value_i_j, ability_value_level_usage_i_j, additional_activate_type_i_j, priority. For those use master.mdb (assumed unchanged).",
+  "eras": [
+    {"from": null,         "to": "2026-02-18", "skills": "2026-06-18-581abe20.json", "evidence": "was 2026-02-19-a1c98910.json; the 03-13 commit (2100xx team-total rework) was already live in the Feb replays: corpus 122 -> 182 full matches, none worse (uma-race-simulator data/mod.rs SKILL_ERAS)"},
+    {"from": "2026-03-14", "to": "2026-06-30", "skills": "2026-06-18-581abe20.json", "evidence": "03-13 change committed before the first March replay; 424/424 duration-changed skill activations in replays dated 06-18..06-30 match the old durations"},
+    {"from": "2026-07-03", "to": null,         "skills": "master.mdb",               "evidence": "rework live between 06-30 and 07-03: 407/407 activations from 07-03 match the new durations; no existing-skill changes after the 2026-07-02 snapshot; the 2026-10-08 snapshot equals master.mdb"}
+  ]
+}

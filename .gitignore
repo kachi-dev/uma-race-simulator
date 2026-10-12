@@ -1,0 +1,7 @@
+/target
+.claude/
+/data/master.mdb
+/docs/re/
+/.cargo/config.toml
+/tests/
+/docs/race_mechs.md

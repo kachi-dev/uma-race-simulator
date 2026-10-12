@@ -1,0 +1,138 @@
+{
+ "m_Enabled": 1,
+ "m_Name": "",
+ "courseParams": [
+  {
+   "_paramType": 0,
+   "_values": [
+    3,
+    170
+   ],
+   "_distance": 370.0
+  },
+  {
+   "_paramType": 0,
+   "_values": [
+    4,
+    150
+   ],
+   "_distance": 540.0
+  },
+  {
+   "_paramType": 0,
+   "_values": [
+    1,
+    180
+   ],
+   "_distance": 1060.0
+  },
+  {
+   "_paramType": 0,
+   "_values": [
+    2,
+    160
+   ],
+   "_distance": 1240.0
+  },
+  {
+   "_paramType": 0,
+   "_values": [
+    3,
+    170
+   ],
+   "_distance": 1770.0
+  },
+  {
+   "_paramType": 0,
+   "_values": [
+    4,
+    152
+   ],
+   "_distance": 1940.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    1,
+    2
+   ],
+   "_distance": 0.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    2,
+    2
+   ],
+   "_distance": 370.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    1,
+    1
+   ],
+   "_distance": 690.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    2,
+    1
+   ],
+   "_distance": 1060.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    1,
+    2
+   ],
+   "_distance": 1400.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    2,
+    2
+   ],
+   "_distance": 1770.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    1,
+    1
+   ],
+   "_distance": 2092.0
+  },
+  {
+   "_paramType": 2,
+   "_values": [
+    2,
+    1
+   ],
+   "_distance": 2400.0
+  },
+  {
+   "_paramType": 4,
+   "_values": [],
+   "_distance": 2015.0
+  },
+  {
+   "_paramType": 5,
+   "_values": [],
+   "_distance": 2025.0
+  },
+  {
+   "_paramType": 8,
+   "_values": [],
+   "_distance": 2015.0
+  },
+  {
+   "_paramType": 9,
+   "_values": [],
+   "_distance": 2025.0
+  }
+ ]
+}
