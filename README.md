@@ -53,3 +53,7 @@ cargo run --release --bin extract_master -- <path to master.mdb>
 ```
 
 Differences between the community race mechanics doc and what the game actually does: [docs/race_mech_diffs.md](docs/race_mech_diffs.md).
+
+## License
+
+The source code is [MIT](LICENSE). The game data under `data/` is extracted from Umamusume: Pretty Derby and remains the property of Cygames, Inc.; it is not covered by the license.
