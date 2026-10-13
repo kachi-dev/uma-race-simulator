@@ -168,7 +168,7 @@ fn calc_ability_value(race: &mut Race, owner: usize, c: &AbilityValue) -> f32 {
                 if n < 1 { 1.0 } else { 1.0 / n as f32 }
             }
         }
-        18 => asc_lookup(p.BaseWizCoefAscArray.iter().map(|e| (e.BaseStatusThreshold, e.Multiply)), h.horse_data.race_param.base_wiz),
+        18 => asc_lookup(p.BaseWizCoefAscArray.iter().map(|e| (e.BaseStatusThreshold, e.Multiply)), crate::sim::physics::stats::base_wiz_for(h, crate::api::wiz_mechanic::SKILLS)),
         // Adds a level-scaled bonus by distance behind the leader to the base value.
         19 => {
             let diff = race.horses[first_horse(race)].distance - h.distance;

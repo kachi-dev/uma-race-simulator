@@ -99,7 +99,7 @@ pub(super) fn value_lh(race: &Race, owner: usize, kind: &SkillTriggerKind) -> i3
         K::BaseStamina => f32_to_i32(h.horse_data.race_param.base_stamina),
         K::BasePower => f32_to_i32(h.horse_data.race_param.base_pow),
         K::BaseGuts => f32_to_i32(h.horse_data.race_param.base_guts),
-        K::BaseWiz => f32_to_i32(h.horse_data.race_param.base_wiz),
+        K::BaseWiz => f32_to_i32(crate::sim::physics::stats::base_wiz_for(h, crate::api::wiz_mechanic::SKILLS)),
         K::HpPer => f32_to_i32(h.hp / h.max_hp * 100.0),
         K::HpEmpty => (h.hp <= 0.0) as i32,
         K::CurrentSpeed => f32_to_i32(h.last_speed),

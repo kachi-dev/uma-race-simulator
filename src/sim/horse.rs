@@ -105,6 +105,8 @@ pub struct Horse {
     pub base_pow_adjusted: f32,
     pub base_guts_adjusted: f32,
     pub base_wiz_adjusted: f32,
+    /// `base_wiz_adjusted` from `HorseInput::wiz_alt` (`stats::wiz_for`).
+    pub base_wiz_adjusted_alt: f32,
     pub last_speed: f32,
     pub lane_move_speed: f32,
     pub move_lane_continue_time: f32,
@@ -234,6 +236,7 @@ pub fn construct(race: &mut Race, data: HorseData) {
         base_pow_adjusted: clamp(rp.base_pow, 1.0, 2000.0),
         base_guts_adjusted: clamp(rp.base_guts, 1.0, 2000.0),
         base_wiz_adjusted: clamp(rp.base_wiz, 1.0, 2000.0),
+        base_wiz_adjusted_alt: clamp(rp.base_wiz_alt, 1.0, 2000.0),
         finish_order: -1,
         finish_time_scaled: -1.0,
         finish_time_scaled_for_finish_order_calc: -1.0,

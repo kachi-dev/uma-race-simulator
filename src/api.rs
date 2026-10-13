@@ -70,6 +70,39 @@ pub struct HorseInput {
     /// activation counts that other conditions read), so a "skill" vs "skill muted" pair shares one RNG sequence
     /// up to the first effect. Empty = normal behaviour. Gate and edge cases: `sim::skill::ability::activate`.
     pub muted_skills: Vec<i32>,
+    /// Not game data (analysis hook): a second raw Wit that only the mechanics in its mask read, through the same
+    /// halving, motivation, style aptitude and skill modifiers. With `wiz` at one value and this at another, a pair of
+    /// races differs in one mechanic's Wit only. None = normal behaviour.
+    pub wiz_alt: Option<WizAlt>,
+}
+
+/// See [`HorseInput::wiz_alt`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct WizAlt {
+    /// Raw Wit, like [`HorseInput::wiz`].
+    pub wiz: i32,
+    /// Bits of [`wiz_mechanic`].
+    pub mechanics: u8,
+}
+
+/// Everything the sim reads Wit for (the live Wit order is only reported, so it keeps the real Wit).
+pub mod wiz_mechanic {
+    /// The per-section base target speed rolls.
+    pub const SECTIONS: u8 = 1 << 0;
+    /// Position keep's Wit rolls (speed up, overtake, pace up).
+    pub const POSITION_KEEP: u8 = 1 << 1;
+    /// Picking a last spurt candidate.
+    pub const LAST_SPURT: u8 = 1 << 2;
+    /// Skill Wit lots (pre-race and random_lot_other_activate), base_wiz conditions and Wit-scaled values.
+    pub const SKILLS: u8 = 1 << 3;
+    /// The rush (掛かり) lottery.
+    pub const RUSHED: u8 = 1 << 4;
+    /// Downhill accel mode.
+    pub const DOWNHILL: u8 = 1 << 5;
+    /// The course-set speed bonus for Wit over its thresholds.
+    pub const COURSE_BONUS: u8 = 1 << 6;
+    pub const COUNT: usize = 7;
+    pub const ALL: u8 = (1 << COUNT) - 1;
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -88,7 +121,7 @@ pub struct SimOutput {
     pub spans: Vec<Span>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Frame {
     pub time: f32,
     pub horses: Vec<HorseFrame>,

@@ -122,7 +122,7 @@ pub fn calc_base_target_speed(race: &mut Race, i: usize) {
     let data = race.data;
     let bt = &data.param.BasetTargetSpeed;
     let h = &race.horses[i];
-    let (wiz, speed, proper_distance_coef) = (stats::wiz(h), stats::speed(h), h.proper_distance_coef_speed);
+    let (wiz, speed, proper_distance_coef) = (stats::wiz_for(h, crate::api::wiz_mechanic::SECTIONS), stats::speed(h), h.proper_distance_coef_speed);
     let (s, x) = (&bt.PhaseBaseTargetSpeedPerArray, &bt.PhaseBaseTargetSpeedPerExArray);
     let per = match style_index(h.horse_data.running_style, h.horse_data.running_style_ex, s.len(), x.len()) {
         Some((false, k)) => [s[k].Start, s[k].Middle, s[k].End, s[k].Last],

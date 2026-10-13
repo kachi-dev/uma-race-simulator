@@ -213,7 +213,7 @@ pub fn update_last_spurt(race: &mut Race, i: usize) {
         phase: h.phase,
         speed: stats::speed(h),
         guts: stats::guts(h),
-        wiz: stats::wiz(h),
+        wiz: stats::wiz_for(h, crate::api::wiz_mechanic::LAST_SPURT),
         base_target_speed: speed::base_target_speed_without_random(race, i, h.phase),
         ground_modifier_multi_hp_sub: h.ground_modifier_param.multi_hp_sub,
         proper_distance_coef: h.proper_distance_coef_speed,

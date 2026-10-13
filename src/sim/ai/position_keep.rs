@@ -301,7 +301,7 @@ fn calc_keep_mode(race: &mut Race, i: usize) -> PositionKeepMode {
 /// Wiz roll: one `GetRandom(100f)`, success iff `r < log10(Wiz * 0.1) * val1`.
 fn wiz_roll(race: &mut Race, i: usize, val1: f32) -> bool {
     let r = race.rng.random_float(100.0);
-    let per = crate::sim::util::mathf_log10(stats::wiz(&race.horses[i]) * 0.1) * val1;
+    let per = crate::sim::util::mathf_log10(stats::wiz_for(&race.horses[i], crate::api::wiz_mechanic::POSITION_KEEP) * 0.1) * val1;
     !(per <= r)
 }
 

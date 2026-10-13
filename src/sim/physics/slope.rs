@@ -32,7 +32,7 @@ pub fn update_down_slope_accel(race: &mut Race, i: usize, dt: f32) {
             return;
         }
         h.ai.down_slope_accel_check_sec = 1.0;
-        let per = min(100.0, stats::wiz(h) * p.DownSlopeAddSpeedStartWizRate);
+        let per = min(100.0, stats::wiz_for(h, crate::api::wiz_mechanic::DOWNHILL) * p.DownSlopeAddSpeedStartWizRate);
         let r = race.rng.random_float_range(0.0, 100.0);
         if r < per {
             let ai = &mut race.horses[i].ai;

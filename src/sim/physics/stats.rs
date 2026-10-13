@@ -59,6 +59,9 @@ pub struct RaceParameter {
     pub base_pow: f32,
     pub base_guts: f32,
     pub base_wiz: f32,
+    /// `HorseInput::wiz_alt`: its base Wit (else `base_wiz`) and mechanics mask (else 0).
+    pub base_wiz_alt: f32,
+    pub wiz_alt_mechanics: u8,
     pub motivation: i32,
     pub motivation_coef: f32,
 }
@@ -86,6 +89,8 @@ impl RaceParameter {
             base_pow: base(input.pow),
             base_guts: base(input.guts),
             base_wiz: base(input.wiz),
+            base_wiz_alt: base(input.wiz_alt.map_or(input.wiz, |a| a.wiz)),
+            wiz_alt_mechanics: input.wiz_alt.map_or(0, |a| a.mechanics),
             motivation: input.motivation,
             motivation_coef: coef,
         }
@@ -180,7 +185,7 @@ pub fn init_course_set_status(race: &mut Race, i: usize) {
                             2 => rp.base_stamina,
                             3 => rp.base_pow,
                             4 => rp.base_guts,
-                            5 => rp.base_wiz,
+                            5 => base_wiz_for(h, crate::api::wiz_mechanic::COURSE_BONUS),
                             _ => f32::NAN, // unknown target stat: coef 0
                         };
                         let c = data.param.CourseSetAdjust.CoefAndThresholdArray.iter().find(|e| e.StatusThreshold as f32 >= s).map_or(0.0, |e| e.Coef);
@@ -214,6 +219,7 @@ pub fn init_base_status_adjust(race: &mut Race, i: usize) {
     h.base_pow_adjusted = clamp_stat((f(rp.base_pow) + f(gm.add_power) + f(po)) as f32);
     h.base_guts_adjusted = clamp_stat(rp.base_guts + gu);
     h.base_wiz_adjusted = clamp_stat((f(rp.base_wiz) * f(h.proper_running_style_coef) + f(wi)) as f32);
+    h.base_wiz_adjusted_alt = clamp_stat((f(rp.base_wiz_alt) * f(h.proper_running_style_coef) + f(wi)) as f32);
 }
 
 /// Live Speed: the adjusted stat with skill modifiers, clamped.
@@ -235,6 +241,22 @@ pub fn guts(h: &Horse) -> f32 {
 
 pub fn wiz(h: &Horse) -> f32 {
     clamp_stat(h.skill_modifier_receiver.apply_modifier(SkillModifierParam::Wiz, h.base_wiz_adjusted))
+}
+
+fn uses_alt(h: &Horse, m: u8) -> bool {
+    h.horse_data.race_param.wiz_alt_mechanics & m != 0
+}
+
+/// Live Wit as mechanic `m` (a [`crate::api::wiz_mechanic`] bit) reads it: [`wiz`], or from `HorseInput::wiz_alt`.
+pub fn wiz_for(h: &Horse, m: u8) -> f32 {
+    let base = if uses_alt(h, m) { h.base_wiz_adjusted_alt } else { h.base_wiz_adjusted };
+    clamp_stat(h.skill_modifier_receiver.apply_modifier(SkillModifierParam::Wiz, base))
+}
+
+/// `race_param.base_wiz` as mechanic `m` reads it (see [`wiz_for`]).
+pub fn base_wiz_for(h: &Horse, m: u8) -> f32 {
+    let rp = &h.horse_data.race_param;
+    if uses_alt(h, m) { rp.base_wiz_alt } else { rp.base_wiz }
 }
 
 /// Max HP: `stamina * HpInitialVal1 * style coef + course distance`.

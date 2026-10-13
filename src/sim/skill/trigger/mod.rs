@@ -214,7 +214,7 @@ fn check_activate(race: &mut Race, r: SkillDetailRef, t: &mut SkillTrigger, othe
             *is_lot_ok = false;
             if *lot_interval <= 0.0 && others_activated {
                 let rnd = race.rng.random_float(100.0);
-                let wiz = crate::sim::physics::stats::wiz(&race.horses[owner]);
+                let wiz = crate::sim::physics::stats::wiz_for(&race.horses[owner], crate::api::wiz_mechanic::SKILLS);
                 *lot_interval = *lot_interval_max;
                 let p = &race.data.param.Skill;
                 // Evaluated in f64 as one expression, rounded at the store.

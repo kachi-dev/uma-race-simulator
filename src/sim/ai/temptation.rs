@@ -30,7 +30,7 @@ pub fn lot_temptation(race: &mut Race, i: usize) {
     let tp = &data.param.Temptation;
     let h = &race.horses[i];
     // The Pow argument is one f64 expression; Pow / Log10 are f64 calls rounded to f32.
-    let x = crate::sim::util::mathf_pow((stats::wiz(h) as f64 * 0.1f32 as f64 + 1.0) as f32, 2.0);
+    let x = crate::sim::util::mathf_pow((stats::wiz_for(h, crate::api::wiz_mechanic::RUSHED) as f64 * 0.1f32 as f64 + 1.0) as f32, 2.0);
     let per = crate::sim::util::mathf_pow(tp.TemptationStartPerVal1 / crate::sim::util::mathf_log10(x), 2.0);
     let per = h.skill_modifier_receiver.apply_modifier(SkillModifierParam::TemptationPer, per);
     let r = race.rng.random_int(100);

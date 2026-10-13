@@ -216,7 +216,7 @@ pub fn lot_activate_skill(race: &mut Race, i: usize) {
     let (v1, v2, min) = (p.LotActivatePerVal1, p.LotActivatePerVal2, p.ActivatePerMin as f32);
     for s in 0..race.horses[i].skill_manager.skills.len() {
         let enable = if race.horses[i].skill_manager.skills[s].skill_master.activate_lot == 1 {
-            let wiz = race.horses[i].horse_data.race_param.base_wiz;
+            let wiz = crate::sim::physics::stats::base_wiz_for(&race.horses[i], crate::api::wiz_mechanic::SKILLS);
             // One f64 expression, rounded at the store.
             let thr = (v1 as f64 - v2 as f64 / wiz as f64) as f32;
             let thr = if min > thr { min } else { thr };

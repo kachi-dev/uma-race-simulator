@@ -160,6 +160,7 @@ fn horse(h: SaveHorse) -> HorseInput {
         single_mode_win_count: r.single_mode_win_count,
         fan_count: r.fan_count,
         muted_skills: Vec::new(),
+        wiz_alt: None,
     }
 }
 
