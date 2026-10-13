@@ -1,5 +1,6 @@
 //! Race recording: frames, events and results → `api::SimOutput`.
 
+use crate::sim::defs::PositionKeepMode;
 use crate::sim::race::Race;
 use crate::sim::ai::{self, temptation};
 use crate::api::{event_kind, span_kind, Event, Frame, HorseFrame, HorseResult, SimOutput, Span};
@@ -26,12 +27,19 @@ pub fn record_spans(race: &mut Race) {
     for i in 0..n {
         let h = &race.horses[i];
         let on = !h.is_finished;
+        let pk = ai::position_keep::position_keep_mode(race, i);
         let state = [
             on && h.is_compete_fight,
             on && h.is_compete_top,
             on && h.ai.temptation.is_temptation,
             on && h.ai.block_horse.is_some(),
             on && h.ai.conserve_power.accel_value > 0.0,
+            on && h.ai.is_down_slope_accel_mode,
+            on && pk == PositionKeepMode::SpeedUp,
+            on && pk == PositionKeepMode::Overtake,
+            on && pk == PositionKeepMode::PaceUp,
+            on && pk == PositionKeepMode::PaceDown,
+            on && pk == PositionKeepMode::PaceUpEx,
         ];
         for (kind, &s) in state.iter().enumerate() {
             match (race.recorder.open_spans[i][kind], s) {

@@ -185,7 +185,15 @@ pub mod span_kind {
     pub const BLOCKED: u8 = 3;
     /// The released conserve-power accel boost.
     pub const CONSERVE_POWER: u8 = 4;
-    pub const COUNT: usize = 5;
+    /// Downhill accel mode.
+    pub const DOWNHILL: u8 = 5;
+    /// Position keep modes.
+    pub const SPEED_UP: u8 = 6;
+    pub const OVERTAKE: u8 = 7;
+    pub const PACE_UP: u8 = 8;
+    pub const PACE_DOWN: u8 = 9;
+    pub const PACE_UP_EX: u8 = 10;
+    pub const COUNT: usize = 11;
 }
 
 pub mod event_kind {
