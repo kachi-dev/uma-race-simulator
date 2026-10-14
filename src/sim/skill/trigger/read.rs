@@ -1,26 +1,11 @@
-//! What the stateless and latched triggers read from the race ([`value_lh`]), and the standings lookups the
-//! triggers share.
+//! What the stateless and latched triggers read from the race ([`value_lh`]).
 
 use crate::sim::race::Race;
 use crate::sim::skill::trigger::kind::SkillTriggerKind;
 use crate::sim::util::{approximately, f32_to_i32, floor_to_int};
-use crate::sim::ai;
-use crate::sim::field;
+use crate::sim::ai::{around, overtake, temptation};
+use crate::sim::field::{self, first_horse, horse_by_order};
 use crate::sim::physics::last_spurt;
-
-/// Horse at order 0 (index 0 when the order list is empty).
-pub fn first_horse(race: &Race) -> usize {
-    race.field.standings.horse_array_by_order.first().map_or(0, |c| c.horse)
-}
-
-pub fn last_horse_index(race: &Race) -> i32 {
-    field::horse_index_at_order(race, race.horses.len() as i32 - 1)
-}
-
-/// Horse at `order`; the callers' guards make a miss impossible (the game would crash on it too).
-pub(super) fn horse_by_order(race: &Race, order: i32) -> usize {
-    field::horse_at_order(race, order).expect("no horse at this order")
-}
 
 /// Lane band: 0 inside (<= 0.2), 1, 2, 3 outside (> 0.6).
 fn lane_type(lane_distance: f32) -> i32 {
@@ -69,7 +54,7 @@ pub(super) fn value_lh(race: &Race, owner: usize, kind: &SkillTriggerKind) -> i3
         // How far behind the leader, in % of the leader-to-last span.
         K::HorseDistanceDiffRate => {
             let first = &race.horses[first_horse(race)];
-            let last = &race.horses[field::horse_index_at_order(race, race.horses.len() as i32 - 1) as usize];
+            let last = &race.horses[field::last_horse_index(race) as usize];
             let span = first.distance - last.distance;
             let num = first.distance - h.distance;
             if approximately(span, 0.0) {
@@ -79,9 +64,9 @@ pub(super) fn value_lh(race: &Race, owner: usize, kind: &SkillTriggerKind) -> i3
             }
         }
         K::OtherHorseBehind => race.info.num_race_horses - h.cur_order - 1,
-        K::BeBlocked => ai::is_block_all(h) as i32,
-        K::BeBlockedFront => ai::is_block_front(h) as i32,
-        K::BeBlockedSide => ai::is_block_side(h) as i32,
+        K::BeBlocked => around::is_block_all(h) as i32,
+        K::BeBlockedFront => around::is_block_front(h) as i32,
+        K::BeBlockedSide => around::is_block_side(h) as i32,
         K::BeBlockedAllContinueTime => {
             let f = h.block_front_continue_time;
             let s = h.block_side_continue_time;
@@ -89,7 +74,7 @@ pub(super) fn value_lh(race: &Race, owner: usize, kind: &SkillTriggerKind) -> i3
         }
         K::BeBlockedFrontContinueTime => f32_to_i32(h.block_front_continue_time),
         K::BeBlockedSideContinueTime => f32_to_i32(h.block_side_continue_time),
-        K::BeBlockedFrontHpEmpty => ai::block_horse_front(race, owner).is_some_and(|j| race.horses[j].hp <= 0.0) as i32,
+        K::BeBlockedFrontHpEmpty => around::block_horse_front(h).is_some_and(|j| race.horses[j].hp <= 0.0) as i32,
         K::BeBlockedFrontHpEmptyContinueTime => f32_to_i32(h.block_front_hp_empty_continue_time),
         K::TemptationCount => h.ai.temptation.temptation_count,
         K::CompeteFightCount => h.compete_fight_count,
@@ -122,11 +107,11 @@ pub(super) fn value_lh(race: &Race, owner: usize, kind: &SkillTriggerKind) -> i3
                 1
             }
         }
-        K::Overtake => ai::is_overtake(h) as i32,
+        K::Overtake => overtake::is_overtake(h) as i32,
         K::OvertakeTargetContinueTime => floor_to_int(h.overtake_target_continue_time),
         K::OvertakeTargetHaveNoOrderUpContinueTime => floor_to_int(h.overtake_target_have_no_order_up_continue_time),
         K::OvertakeTargetHaveNoOrderDownContinueTime => floor_to_int(h.overtake_target_have_no_order_down_continue_time),
-        K::Surrounded => ai::is_surrounded(h) as i32,
+        K::Surrounded => around::is_surrounded(h) as i32,
         K::NearHorseCount => h.ai.near_horse_count,
         K::NearAroundAccumulateTime => floor_to_int(h.near_horse_around_accumulate_time),
         K::DistanceDiffTop => floor_to_int(race.horses[first_horse(race)].distance - h.distance),
@@ -198,8 +183,8 @@ pub(super) fn value_lh(race: &Race, owner: usize, kind: &SkillTriggerKind) -> i3
         // Stored 0-based.
         K::Popularity => h.horse_data.popularity + 1,
         K::Phase => h.phase as i32,
-        K::Temptation => ai::is_temptation(h) as i32,
-        K::IsLastSpurt => last_spurt::is_last_spurt(race, owner) as i32,
+        K::Temptation => temptation::is_temptation(h) as i32,
+        K::IsLastSpurt => last_spurt::is_last_spurt(h) as i32,
         K::LastSpurt => match h.ai.last_spurt_calc_result {
             1 => 2,
             2 => 1,

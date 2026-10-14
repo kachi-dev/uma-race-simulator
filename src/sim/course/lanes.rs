@@ -4,6 +4,7 @@
 
 use crate::sim::race::RaceInfo;
 use crate::sim::util::{clamp01, f32_to_i32};
+use crate::data::course::Quaternion;
 use crate::data::course::{lane_path_name, round_lane_path_name};
 use crate::data::{CourseLaneAnim, GameData};
 
@@ -12,20 +13,6 @@ pub struct Vector3 {
     pub x: f32,
     pub y: f32,
     pub z: f32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Quaternion {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-    pub w: f32,
-}
-
-impl Default for Quaternion {
-    fn default() -> Self {
-        Quaternion { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
-    }
 }
 
 impl Quaternion {
@@ -121,8 +108,7 @@ pub fn sample(anim: &CourseLaneAnim, t: f32) -> (Vector3, Quaternion) {
         Vector3 { x: k.valueX[n], y: y_at(n), z: k.valueZ[n] }
     };
     let r = &k.rotation;
-    let q = |j: usize| Quaternion { x: r[j].x, y: r[j].y, z: r[j].z, w: r[j].w };
-    let rot = if i < r.len() as i32 - 1 { Quaternion::lerp(q(i as usize), q(i as usize + 1), t - i as f32) } else { q(r.len() - 1) };
+    let rot = if i < r.len() as i32 - 1 { Quaternion::lerp(r[i as usize], r[i as usize + 1], t - i as f32) } else { r[r.len() - 1] };
     (pos, rot)
 }
 
@@ -150,7 +136,7 @@ const ROTATION_FIX_RIGHT: Vector3 = Vector3 { x: 0.0, y: 180.0, z: 0.0 };
 const ROTATION_FIX_LEFT: Vector3 = Vector3 { x: 0.0, y: 0.0, z: 0.0 };
 
 impl CourseLane {
-    pub fn init(is_right: bool, lane_anim: CourseLaneAnim, over_run_anim: Option<CourseLaneAnim>, course_distance: i32) -> CourseLane {
+    pub fn new(is_right: bool, lane_anim: CourseLaneAnim, over_run_anim: Option<CourseLaneAnim>, course_distance: i32) -> CourseLane {
         let mut lane = CourseLane::default();
         lane.rotation_fix = if is_right { ROTATION_FIX_RIGHT } else { ROTATION_FIX_LEFT };
         let f = lane.rotation_fix;

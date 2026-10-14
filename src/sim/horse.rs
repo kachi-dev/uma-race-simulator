@@ -3,7 +3,8 @@
 
 use crate::sim::ai::Ai;
 use crate::sim::course::lanes::{self, Vector3};
-use crate::sim::defs::{last_spurt_calc_result, Phase, RunningStyle, RunningStyleEx, SkillModifierParam, SlopeType, ORDER_IN_OUT_TYPE_COUNT};
+use crate::sim::defs::{last_spurt_calc_result, Phase, RunningStyle, RunningStyleEx, SkillModifierParam, SlopeType};
+use crate::sim::skill::trigger::order_in_out::ORDER_IN_OUT_TYPE_COUNT;
 use crate::sim::ai::order::OrderChangeCounter;
 use crate::sim::race::Race;
 use crate::sim::skill::SkillManager;
@@ -56,7 +57,7 @@ impl HorseData {
             post_number: post_number(horse_index as i32, info.num_race_horses),
             chara_id: input.chara_id,
             card_id: input.card_id,
-            race_param: RaceParameter::new(race, input),
+            race_param: RaceParameter::from_input(&race.data.master, input, stats::STAT_HALVING),
             popularity: input.popularity - 1,
             running_style: RunningStyle::from_i32(input.running_style),
             running_style_ex: running_style_ex(&race.data.skills, input),
@@ -500,7 +501,7 @@ mod tests {
 
     #[test]
     fn top_passive_skill_average_small_field() {
-        let mut race = super::super::ai::test_race(2);
+        let mut race = crate::sim::test_util::ai_race(2);
         race.field.horse_index_by_finish_order = vec![0, 1];
         race.horses[0].skill_manager.skills = vec![Default::default(); 3];
         assert_eq!(super::calc_top_passive_skill_num_average(&race, 1), 3);
@@ -510,7 +511,7 @@ mod tests {
     #[test]
     fn defeat() {
         use super::Defeat;
-        let mut race = crate::sim::ai::test_race(3);
+        let mut race = crate::sim::test_util::ai_race(3);
         race.field.horse_index_by_finish_order = vec![0, 1, 2];
         for (i, h) in race.horses.iter_mut().enumerate() {
             h.finish_order = i as i32;

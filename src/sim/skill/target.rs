@@ -21,9 +21,11 @@ pub struct SkillTarget {
     pub is_debuff: bool,
 }
 
-/// No RNG.
-pub fn new_skill_target(owner: usize, target_type: i32, target_value: i32, is_debuff: bool) -> SkillTarget {
-    SkillTarget { target_type, owner, value_rh: target_value, targets: Vec::new(), is_debuff }
+impl SkillTarget {
+    /// No RNG.
+    pub fn new(owner: usize, target_type: i32, target_value: i32, is_debuff: bool) -> SkillTarget {
+        SkillTarget { target_type, owner, value_rh: target_value, targets: Vec::new(), is_debuff }
+    }
 }
 
 /// `ability` must have an effect. Some types draw RNG (RandomOtherSelf, *Temptation).
@@ -193,7 +195,7 @@ fn select_targets(race: &mut Race, t: &mut SkillTarget) {
             arr.into_iter().take(n.max(0) as usize).map(|k| ai.around_horses[k].info).collect()
         }
         // SelfAndBlockFront (13), BlockSide (14)
-        13 => std::iter::once(owner).chain(ai::block_horse_front(race, owner)).collect(),
+        13 => std::iter::once(owner).chain(ai::around::block_horse_front(&race.horses[owner])).collect(),
         14 => {
             let ai = &race.horses[owner].ai;
             ai.block_horse_in.into_iter().chain(ai.block_horse_out).map(|k| ai.around_horses[k].info).collect()
@@ -211,7 +213,7 @@ fn select_targets(race: &mut Race, t: &mut SkillTarget) {
         // RunningStyle (17), RunningStyleOtherSelf (18), RunningStyleTemptationOtherSelf (21: owner NOT excluded).
         17 => running_style_horses(race, v),
         18 => running_style_horses(race, v).into_iter().filter(|&h| h != owner).collect(),
-        21 => running_style_horses(race, v).into_iter().filter(|&h| ai::is_temptation(&race.horses[h])).collect(),
+        21 => running_style_horses(race, v).into_iter().filter(|&h| ai::temptation::is_temptation(&race.horses[h])).collect(),
         // SelfInfrontTemptation (19) / SelfBehindTemptation (20): n draws over the shrinking candidate list.
         19 | 20 => {
             let o = cur_order(race, owner);
@@ -253,7 +255,8 @@ fn select_targets(race: &mut Race, t: &mut SkillTarget) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sim::ai::{test_race, AroundHorse};
+    use crate::sim::ai::around::AroundHorse;
+    use crate::sim::test_util::ai_race;
 
     fn target(t: i32, v: i32, debuff: bool) -> SkillTarget {
         SkillTarget { target_type: t, owner: 0, value_rh: v, targets: Vec::new(), is_debuff: debuff }
@@ -261,7 +264,7 @@ mod tests {
 
     #[test]
     fn near_sorted_by_score_and_capped() {
-        let mut race = test_race(4);
+        let mut race = ai_race(4);
         let ai = &mut race.horses[0].ai;
         ai.around_horses = vec![
             AroundHorse { info: 1, distance_gap_abs: 5.0, lane_gap_abs: 0.0, ..Default::default() },
@@ -277,7 +280,7 @@ mod tests {
 
     #[test]
     fn random_other_self_probes_and_draws_cnt() {
-        let mut race = test_race(4);
+        let mut race = ai_race(4);
         race.field.horse_num = 4;
         for (i, h) in race.horses.iter_mut().enumerate() {
             h.horse_data.horse_index = i as i32;
@@ -293,7 +296,7 @@ mod tests {
 
     #[test]
     fn debuff_filter_and_heal_history() {
-        let mut race = test_race(4);
+        let mut race = ai_race(4);
         for (i, h) in race.horses.iter_mut().enumerate() {
             h.horse_data.team_id = [1, 1, 2, 0][i];
         }

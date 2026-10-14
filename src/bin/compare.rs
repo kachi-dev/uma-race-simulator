@@ -122,7 +122,7 @@ fn need_hp_per_m(r: &mut uma_race_sim::sim::race::Race, i: usize) -> f32 {
         course_distance: r.info.race_course_set.distance,
         race_base_speed: r.info.base_speed,
     };
-    let mut calc = last_spurt::new_last_spurt(r, r.info.base_speed);
+    let mut calc = last_spurt::LastSpurt::new(r, r.info.base_speed);
     calc.calc_param = p;
     last_spurt::calc_last_spurt(r, &mut calc);
     hp::calc_need_hp(r, p.race_base_speed, p.ground_modifier_multi_hp_sub, Phase::End, p.guts, calc.last_spurt_target_speed, 1.0)
@@ -284,27 +284,13 @@ fn spurt_summary(spurts: &[(usize, usize, bool, SpurtCmp)], files: &[PathBuf]) {
     v.iter().take(top).for_each(|s| println!("{}", line(s)));
 }
 
-fn collect_json(dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(rd) = std::fs::read_dir(dir) else { return };
-    for e in rd.flatten() {
-        let p = e.path();
-        if p.is_dir() {
-            collect_json(&p, out);
-        } else if p.extension().is_some_and(|x| x == "json") {
-            out.push(p);
-        }
-    }
-}
-
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut cache = HashMap::new();
     match args.as_slice() {
         [flag, dir, rest @ ..] if flag == "--corpus" => {
             let data_dir = PathBuf::from(rest.first().map_or(DEFAULT_DATA_DIR, |s| s.as_str()));
-            let mut files = Vec::new();
-            collect_json(Path::new(dir), &mut files);
-            files.sort();
+            let files = corpus::race_files(Path::new(dir));
             // COMPARE_THREADS=n (default: all cores). Each thread keeps its own GameData cache.
             let threads = std::env::var("COMPARE_THREADS").ok().and_then(|t| t.parse().ok())
                 .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, |n| n.get()));

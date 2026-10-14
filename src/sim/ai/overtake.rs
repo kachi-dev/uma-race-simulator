@@ -1,7 +1,8 @@
 //! Overtake targets: who a horse is trying to pass, the overtake cooldown, and the overtake-target timers.
 
-use crate::sim::ai::{block_horse_front, AroundHorse};
+use crate::sim::ai::around::{block_horse_front, AroundHorse};
 use crate::sim::ai::lane;
+use crate::sim::horse::Horse;
 use crate::sim::race::Race;
 use crate::sim::physics::speed::target_speed_with_skill;
 
@@ -59,7 +60,7 @@ fn check_overtake_target(race: &Race, i: usize, a: &AroundHorse) -> bool {
     // The speed getters are pure, so they are evaluated only on the paths that use them.
     let my_target = || target_speed_with_skill(owner);
     let other_speed = other.last_speed;
-    if block_horse_front(race, i) == Some(a.info) {
+    if block_horse_front(&race.horses[i]) == Some(a.info) {
         return other_speed < my_target();
     }
     if a.distance_gap < 1.0 || a.distance_gap > 20.0 || a.speed_gap < 0.0 {
@@ -68,7 +69,7 @@ fn check_overtake_target(race: &Race, i: usize, a: &AroundHorse) -> bool {
     if a.distance_gap / a.speed_gap > race.data.param.overTakeDistPerSpeed {
         return false;
     }
-    if block_horse_front(race, a.info).is_none() {
+    if block_horse_front(&race.horses[a.info]).is_none() {
         target_speed_with_skill(other) < my_target()
     } else {
         other_speed < my_target()
@@ -101,10 +102,21 @@ pub fn update_overtake_target_have_time(race: &mut Race, i: usize, dt: f32) {
     }
 }
 
+/// Has an overtake target.
+pub fn is_overtake(h: &Horse) -> bool {
+    !h.ai.overtake_targets.targets.is_empty()
+}
+
+/// Has an overtake target, or the overtake cooldown is still running.
+pub fn is_overtake_or_cool_down(h: &Horse) -> bool {
+    is_overtake(h) || h.ai.overtake_cool_down_time > 0.0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sim::ai::{snapshot_scan_view, test_race, update_around_horses_param};
+    use crate::sim::ai::around::{snapshot_scan_view, update_around_horses_param};
+    use crate::sim::test_util::ai_race;
     use crate::sim::ai::lane::{RaceLanePlanner, LanePlanner};
 
     fn scan(race: &mut Race) {
@@ -121,7 +133,7 @@ mod tests {
 
     #[test]
     fn collect_and_cool_down() {
-        let mut race = test_race(3);
+        let mut race = ai_race(3);
         for (i, (d, l, v)) in [(100.0, 0.3, 20.0), (105.0, 0.3, 18.0), (130.0, 0.3, 25.0)].into_iter().enumerate() {
             race.horses[i].distance = d;
             race.horses[i].lane_distance = l;
@@ -158,7 +170,7 @@ mod tests {
     #[test]
     fn front_blocker_always_listed() {
         // Front blocker 1 m ahead (gap < 1 m excluded by the speed test only when it is not the blocker).
-        let mut race = test_race(2);
+        let mut race = ai_race(2);
         race.horses[0].distance = 100.0;
         race.horses[1].distance = 100.8;
         race.horses[0].lane_distance = 0.3;
@@ -166,7 +178,7 @@ mod tests {
         race.horses[0].ai.target_speed = 15.0;
         race.horses[1].last_speed = 20.0; // faster than our target: not a target, but it's the block horse
         scan(&mut race);
-        assert_eq!(block_horse_front(&race, 0), Some(1));
+        assert_eq!(block_horse_front(&race.horses[0]), Some(1));
         collect_overtake_target(&mut race, 0);
         assert_eq!(race.horses[0].ai.overtake_targets.targets, [0]);
     }

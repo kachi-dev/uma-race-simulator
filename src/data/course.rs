@@ -21,12 +21,19 @@ pub struct CourseEvents {
     pub courseParams: Vec<CourseParam>,
 }
 
-#[derive(Clone, Copy, Debug, Default, Deserialize)]
+/// Rotation math is in `sim::course::lanes`.
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 pub struct Quaternion {
     pub x: f32,
     pub y: f32,
     pub z: f32,
     pub w: f32,
+}
+
+impl Default for Quaternion {
+    fn default() -> Self {
+        Quaternion { x: 0.0, y: 0.0, z: 0.0, w: 1.0 }
+    }
 }
 
 /// Lane path keyframes. `valueY` may be empty (= 0).

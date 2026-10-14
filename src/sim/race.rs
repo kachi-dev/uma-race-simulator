@@ -174,7 +174,7 @@ pub fn init<'a>(input: &'a RaceInput, data: &'a GameData) -> Race<'a> {
     race.course = course::create_course_event(&params);
     init_race_base_speed(&mut race);
     let (lane_anim, over_run_anim) = lanes::load_course_lane_anims(data, &race.info);
-    race.course_lane = CourseLane::init(race.info.rotation_category != 2, lane_anim, over_run_anim, race.info.race_course_set.distance);
+    race.course_lane = CourseLane::new(race.info.rotation_category != 2, lane_anim, over_run_anim, race.info.race_course_set.distance);
     course::cache_straights(&mut race.course);
     race.course.corners = course::calc_corner_list(&race.course.event_param.course_event_corner, race.info.race_course_set.distance);
     race.course.slopes = course::calc_slope_list(&race.course.event_param.course_event_slope);

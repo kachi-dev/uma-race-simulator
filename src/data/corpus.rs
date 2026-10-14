@@ -4,7 +4,7 @@
 //! Headless-client saves have no `time` (the race instance's is used), `horseIndex` or `runningStyleEx`.
 
 use std::borrow::Cow;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
@@ -204,6 +204,25 @@ pub fn date_from_path(path: &Path) -> Result<String, String> {
     } else {
         Err(format!("{}: no -YYYYMMDD suffix", path.display()))
     }
+}
+
+/// Every `.json` under `dir`, recursively, sorted.
+pub fn race_files(dir: &Path) -> Vec<PathBuf> {
+    fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
+        let Ok(rd) = std::fs::read_dir(dir) else { return };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                walk(&p, out);
+            } else if p.extension().is_some_and(|x| x == "json") {
+                out.push(p);
+            }
+        }
+    }
+    let mut files = Vec::new();
+    walk(dir, &mut files);
+    files.sort();
+    files
 }
 
 /// Loads a saved race: `(input, server replay, date "YYYYMMDD" from the filename)`.

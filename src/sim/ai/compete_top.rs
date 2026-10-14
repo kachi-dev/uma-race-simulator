@@ -2,7 +2,7 @@
 
 use crate::api::event_kind;
 use crate::sim::race::Race;
-use crate::sim::physics::conserve_power;
+use crate::sim::physics::{conserve_power, stats};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CompeteTop {
@@ -101,4 +101,15 @@ fn start_groups(race: &mut Race) {
             conserve_power::on_compete_top_start(race, i);
         }
     }
+}
+
+/// Target-speed add during a spot struggle, `(AddParam1Coef1 * Guts)^Coef2 * Coef3` with the live Guts.
+/// `is_compete_top` is set late in the frame, so this applies from the next frame on.
+pub fn add_target_speed(race: &Race, i: usize) -> f32 {
+    let h = &race.horses[i];
+    if !h.is_compete_top {
+        return 0.0;
+    }
+    let p = &race.data.param.CompeteTop;
+    crate::sim::util::mathf_pow(p.AddParam1Coef1 * stats::guts(h), p.AddParam1Coef2) * p.AddParam1Coef3
 }

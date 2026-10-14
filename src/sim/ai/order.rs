@@ -1,10 +1,12 @@
 //! Race order (who is where in the field) and the per-horse order-change counters.
 
-use crate::sim::defs::ORDER_CHANGE_COOLDOWN_SLOTS;
 use crate::sim::field::horse_index_at_order;
 use crate::sim::physics::last_spurt;
 use crate::sim::race::Race;
 use crate::sim::util::intro_sort;
+
+/// Indexed by horse index.
+const ORDER_CHANGE_COOLDOWN_SLOTS: usize = 18;
 
 /// One entry of the order array: a horse index and its distance at the last sort.
 #[derive(Clone, Copy, Debug, Default)]
@@ -21,17 +23,8 @@ pub struct Standings {
 
 impl Standings {
     /// All horses in index order.
-    pub fn init(n: usize) -> Self {
+    pub fn new(n: usize) -> Self {
         Standings { horse_array_by_order: (0..n).map(|horse| CurOrderInfo { horse, distance: 0.0 }).collect() }
-    }
-
-    pub fn horse_at_order(&self, order: i32) -> Option<usize> {
-        usize::try_from(order).ok().and_then(|o| self.horse_array_by_order.get(o)).map(|c| c.horse)
-    }
-
-    /// The horse index at `order`, 0 when out of range.
-    pub fn horse_index_at_order(&self, order: i32) -> i32 {
-        self.horse_at_order(order).map_or(0, |h| h as i32)
     }
 }
 
@@ -121,7 +114,7 @@ pub fn order_change_counter_update(race: &mut Race, i: usize, is_up: bool, dt: f
     if race.horses[i].is_finished {
         return;
     }
-    let is_last_spurt = last_spurt::is_last_spurt(race, i);
+    let is_last_spurt = last_spurt::is_last_spurt(&race.horses[i]);
     let h = &race.horses[i];
     let (cur, prev) = (h.cur_order, h.prev_order);
     let (phase, cur_corner, distance, is_final_corner) = (h.phase as i32, h.cur_corner, h.distance, h.is_final_corner);
@@ -180,7 +173,7 @@ mod tests {
 
     #[test]
     fn order_and_change_counter() {
-        let mut race = crate::sim::ai::test_race(3);
+        let mut race = crate::sim::test_util::ai_race(3);
         for h in race.horses.iter_mut() {
             h.order_change_counter_up = OrderChangeCounter::new_up(3, 6.0);
             h.order_change_counter_down = OrderChangeCounter::new_down(3, 6.0);

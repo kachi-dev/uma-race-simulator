@@ -9,7 +9,7 @@ use crate::sim::ai::{compete_top::CompeteTop, pacemaker::Pacemaker};
 use crate::sim::skill::SkillDetailRef;
 use crate::sim::util::{approximately, f32_to_i32, intro_sort};
 use crate::sim::ai::{self, lane, temptation};
-use crate::sim::physics::stats;
+use crate::sim::physics::{conserve_power, stats};
 use crate::sim::skill;
 use crate::rng::RaceRandom;
 
@@ -47,8 +47,8 @@ pub struct Field {
     pub compete_top: CompeteTop,
     /// Reused buffer for `update_overlap` (no per-frame allocation).
     pub sorted_by_lane_buf: Vec<usize>,
-    /// Start-of-frame copy for the around-horse scans, see [`crate::sim::ai::snapshot_scan_view`].
-    pub scan_view: Vec<crate::sim::ai::ScanView>,
+    /// Start-of-frame copy for the around-horse scans, see [`crate::sim::ai::around::snapshot_scan_view`].
+    pub scan_view: Vec<crate::sim::ai::around::ScanView>,
 }
 
 /// RNG draws happen in this order.
@@ -72,7 +72,7 @@ pub fn init(race: &mut Race) {
     for i in 0..race.horses.len() {
         ai::create_ai(race, i);
     }
-    race.field.standings = Standings::init(race.horses.len());
+    race.field.standings = Standings::new(race.horses.len());
     race.field.teams = create_team_info(race);
     race.field.horse_index_by_finish_order = vec![0; n as usize];
     race.field.compete_top = CompeteTop::default();
@@ -134,7 +134,7 @@ pub fn init_before_start(race: &mut Race) {
         horse::use_item(race, i);
     }
     for i in 0..n {
-        ai::update_activate_status_conserve_power(race, i);
+        conserve_power::update_activate_status(race, i);
     }
     // Start-delay RNG.
     let max = race.data.param.startDelayMax;
@@ -251,7 +251,7 @@ pub fn calc_clamped_finish_time(t: f32, cs: &crate::data::master::RaceCourseSet,
 
 /// Accumulates the time the last-placed horse has spent in last place.
 pub fn update_last_order_time(race: &mut Race, dt: f32) {
-    let idx = horse_index_at_order(race, race.horses.len() as i32 - 1);
+    let idx = last_horse_index(race);
     race.horses[idx as usize].last_order_time += dt;
 }
 
@@ -273,7 +273,7 @@ pub fn cache_rushed_horses(race: &mut Race) {
         race.field.rushed_horses_by_style[s].clear();
         for k in 0..race.field.same_running_style_horses[s].len() {
             let h = race.field.same_running_style_horses[s][k];
-            if ai::is_temptation(&race.horses[h]) {
+            if ai::temptation::is_temptation(&race.horses[h]) {
                 race.field.rushed_horses_by_style[s].push(h);
                 race.field.rushed_horses.push(h);
             }
@@ -335,13 +335,27 @@ pub fn update_lane_distance_rate(race: &mut Race) {
     }
 }
 
-/// Horse index at `order`, or 0 when out of range.
-pub fn horse_index_at_order(race: &Race, order: i32) -> i32 {
-    race.field.standings.horse_index_at_order(order)
+pub fn horse_at_order(race: &Race, order: i32) -> Option<usize> {
+    usize::try_from(order).ok().and_then(|o| race.field.standings.horse_array_by_order.get(o)).map(|c| c.horse)
 }
 
-pub fn horse_at_order(race: &Race, order: i32) -> Option<usize> {
-    race.field.standings.horse_at_order(order)
+/// Horse at `order`; the callers' guards make a miss impossible (the game would crash on it too).
+pub fn horse_by_order(race: &Race, order: i32) -> usize {
+    horse_at_order(race, order).expect("no horse at this order")
+}
+
+/// Horse index at `order`, or 0 when out of range.
+pub fn horse_index_at_order(race: &Race, order: i32) -> i32 {
+    horse_at_order(race, order).map_or(0, |h| h as i32)
+}
+
+/// Horse at order 0 (index 0 when the order list is empty).
+pub fn first_horse(race: &Race) -> usize {
+    race.field.standings.horse_array_by_order.first().map_or(0, |c| c.horse)
+}
+
+pub fn last_horse_index(race: &Race) -> i32 {
+    horse_index_at_order(race, race.horses.len() as i32 - 1)
 }
 
 pub fn running_style_horses<'r>(race: &'r Race, style: RunningStyle) -> &'r [usize] {
@@ -358,7 +372,7 @@ mod tests {
 
     #[test]
     fn overlap_and_lane_rate() {
-        let mut race = crate::sim::ai::test_race(3);
+        let mut race = crate::sim::test_util::ai_race(3);
         for (i, (d, l)) in [(10.0, 0.5), (10.1, 0.51), (10.2, 0.52)].into_iter().enumerate() {
             race.horses[i].distance = d;
             race.horses[i].lane_distance = l;
@@ -374,7 +388,7 @@ mod tests {
 
     #[test]
     fn finish_order_and_clamp() {
-        let mut race = crate::sim::ai::test_race(3);
+        let mut race = crate::sim::test_util::ai_race(3);
         for (i, t) in [95.5f32, 94.0, 95.5].into_iter().enumerate() {
             race.horses[i].finish_time_scaled = t;
             race.horses[i].finish_time_scaled_for_finish_order_calc = t as f64;

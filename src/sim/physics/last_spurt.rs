@@ -3,6 +3,7 @@
 
 use crate::sim::defs::{last_spurt_calc_result as res, Phase};
 use crate::sim::physics::hp;
+use crate::sim::horse::Horse;
 use crate::sim::race::Race;
 use crate::sim::util::{f32_to_i32, intro_sort, mathf_pow};
 use crate::sim::physics::{speed, stats};
@@ -42,20 +43,20 @@ struct LastSpurtCandidate {
     need_time: f32,
 }
 
-/// A calculator with no result yet (start distance -1, target speed = race base speed).
-pub fn new_last_spurt(race: &Race, race_base_speed: f32) -> LastSpurt {
-    let p = &race.data.param;
-    LastSpurt {
-        calc_param: LastSpurtCalcParam::default(),
-        last_spurt_base_target_speed_add: race_base_speed * p.lastSpurtBaseTargetSpeedAddCoef,
-        last_spurt_distance_goal_buffer: p.LastSpurtDistanceGoalBuffer,
-        last_spurt_start_distance: -1.0,
-        last_spurt_target_speed: race_base_speed,
-        calc_result: res::FALSE,
-    }
-}
-
 impl LastSpurt {
+    /// A calculator with no result yet (start distance -1, target speed = race base speed).
+    pub fn new(race: &Race, race_base_speed: f32) -> LastSpurt {
+        let p = &race.data.param;
+        LastSpurt {
+            calc_param: LastSpurtCalcParam::default(),
+            last_spurt_base_target_speed_add: race_base_speed * p.lastSpurtBaseTargetSpeedAddCoef,
+            last_spurt_distance_goal_buffer: p.LastSpurtDistanceGoalBuffer,
+            last_spurt_start_distance: -1.0,
+            last_spurt_target_speed: race_base_speed,
+            calc_result: res::FALSE,
+        }
+    }
+
     /// Distance left to the goal minus the goal buffer, at least 0.
     fn remain_distance(&self) -> f32 {
         let p = &self.calc_param;
@@ -220,7 +221,7 @@ pub fn update_last_spurt(race: &mut Race, i: usize) {
         course_distance: race.info.race_course_set.distance,
         race_base_speed: race.info.base_speed,
     };
-    let mut calc = new_last_spurt(race, race.info.base_speed);
+    let mut calc = LastSpurt::new(race, race.info.base_speed);
     calc.calc_param = p;
     calc_last_spurt(race, &mut calc);
     let ai = &mut race.horses[i].ai;
@@ -241,12 +242,11 @@ pub fn update_last_spurt(race: &mut Race, i: usize) {
 }
 
 /// Is the horse past its (successful) last-spurt start point?
-pub fn is_last_spurt(race: &Race, i: usize) -> bool {
-    let h = &race.horses[i];
+pub fn is_last_spurt(h: &Horse) -> bool {
     let ai = &h.ai;
     ai.last_spurt_start_distance > 0.0 && ai.last_spurt_calc_result & res::FALSE_FLAGS == 0 && h.distance >= ai.last_spurt_start_distance
 }
 
-pub fn last_spurt_target_speed(race: &Race, i: usize) -> f32 {
-    race.horses[i].ai.last_spurt_target_speed
+pub fn last_spurt_target_speed(h: &Horse) -> f32 {
+    h.ai.last_spurt_target_speed
 }

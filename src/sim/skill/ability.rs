@@ -45,27 +45,29 @@ fn additional_activate_max_count(race: &Race, t: i32) -> i32 {
     race.data.param.Skill.AdditionalActivateAbilityMaxCountArray.iter().find(|x| x.AdditionalActivateType == t).map_or(0, |x| x.AdditionalActivateMaxCount)
 }
 
-/// No RNG: random values draw per activation.
-pub fn new_skill_ability(race: &mut Race, r: SkillDetailRef, level: i32, m: &SkillAbilityData, target: SkillTarget) -> SkillAbility {
-    let value = m.float_ability_value as f32 * 0.0001;
-    let v = value::apply_level_to_value(race.data, level, m.ability_type, value, m.ability_value_level_usage);
-    let calc = value::new_ability_value(race, r.horse, m.ability_value_usage, v, level, m.ability_type, m.ability_value_level_usage);
-    let t = m.additional_activate_type;
-    let ability_additional_activate = match t {
-        1 => SkillAbilityAdditionalActivate::OrderUp { additional_activate_max_count: additional_activate_max_count(race, 1), additional_activate_count: 0 },
-        2 | 3 => SkillAbilityAdditionalActivate::ActivateAnySkill { additional_activate_max_count: additional_activate_max_count(race, t), additional_activate_count: 0 },
-        _ => SkillAbilityAdditionalActivate::Null,
-    };
-    SkillAbility {
-        target,
-        ability_value_with_usage: calc,
-        ability_additional_activate,
-        level,
-        additional_activate_type: t,
-        modifiers: Vec::new(),
-        additional_activate_count: 0,
-        ability_type: m.ability_type,
-        ability_value_on_activate: 0.0,
+impl SkillAbility {
+    /// No RNG: random values draw per activation.
+    pub fn new(race: &mut Race, r: SkillDetailRef, level: i32, m: &SkillAbilityData, target: SkillTarget) -> SkillAbility {
+        let value = m.float_ability_value as f32 * 0.0001;
+        let v = value::apply_level_to_value(race.data, level, m.ability_type, value, m.ability_value_level_usage);
+        let calc = value::AbilityValue::new(race, r.horse, m.ability_value_usage, v, level, m.ability_type, m.ability_value_level_usage);
+        let t = m.additional_activate_type;
+        let ability_additional_activate = match t {
+            1 => SkillAbilityAdditionalActivate::OrderUp { additional_activate_max_count: additional_activate_max_count(race, 1), additional_activate_count: 0 },
+            2 | 3 => SkillAbilityAdditionalActivate::ActivateAnySkill { additional_activate_max_count: additional_activate_max_count(race, t), additional_activate_count: 0 },
+            _ => SkillAbilityAdditionalActivate::Null,
+        };
+        SkillAbility {
+            target,
+            ability_value_with_usage: calc,
+            ability_additional_activate,
+            level,
+            additional_activate_type: t,
+            modifiers: Vec::new(),
+            additional_activate_count: 0,
+            ability_type: m.ability_type,
+            ability_value_on_activate: 0.0,
+        }
     }
 }
 
@@ -250,7 +252,7 @@ pub fn calc_additional_activate_count(race: &mut Race, r: SkillDetailRef, abilit
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sim::skill::value::tests::{input, test_race};
+    use crate::sim::test_util::{input, skill_race};
     use SkillModifierParam as P;
 
     const R: SkillDetailRef = SkillDetailRef { horse: 0, skill: 0, detail: 0 };
@@ -261,7 +263,7 @@ mod tests {
 
     fn install(race: &mut Race, m: &SkillAbilityData, level: i32, targets: Vec<usize>, left_time: f32) {
         let target = SkillTarget { target_type: 1, targets, ..Default::default() };
-        let ab = new_skill_ability(race, R, level, m, target);
+        let ab = SkillAbility::new(race, R, level, m, target);
         let d = &mut race.horses[0].skill_manager.skills[0].details[0];
         d.abilities = vec![Some(ab)];
         d.left_time = left_time;
@@ -274,7 +276,7 @@ mod tests {
     #[test]
     fn construction() {
         let inp = input(1);
-        let mut race = test_race(&inp, 1);
+        let mut race = skill_race(&inp, 1);
         // TargetSpeed 0.35 at level 5, level usage Normal: 1.1f * 0.35f = 0.385f
         install(&mut race, &ab_data(27, 3500, 1, 0), 5, vec![0], 2.4);
         assert_eq!(ab(&race).ability_value_with_usage.ability_value, 0.385f32);
@@ -293,7 +295,7 @@ mod tests {
     #[test]
     fn effects_time_and_stop() {
         let inp = input(2);
-        let mut race = test_race(&inp, 1);
+        let mut race = skill_race(&inp, 1);
         install(&mut race, &ab_data(27, 3500, 1, 0), 1, vec![0, 1], 2.4);
         activate_after_targets(&mut race, R, 0, false);
         assert_eq!(ab(&race).ability_value_on_activate, 0.35f32);
@@ -321,7 +323,7 @@ mod tests {
     #[test]
     fn special_types() {
         let inp = input(1);
-        let mut race = test_race(&inp, 1);
+        let mut race = skill_race(&inp, 1);
         let rec = |race: &Race| race.horses[0].skill_modifier_receiver.clone();
         // HpRate: maxHp * v, one-time Add
         race.horses[0].max_hp = 1000.0;
@@ -357,7 +359,7 @@ mod tests {
     #[test]
     fn additional_activate_counts() {
         let inp = input(2);
-        let mut race = test_race(&inp, 1);
+        let mut race = skill_race(&inp, 1);
         race.horses[0].skill_manager.skills[0].skill_master.id = 100;
         race.horses[0].skill_manager.skills.push(Default::default());
         race.horses[0].skill_manager.skills[1].skill_master.id = 200;

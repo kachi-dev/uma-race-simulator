@@ -3,8 +3,10 @@
 //! RNG: SpeedUp / Overtake / PaceUp starts draw a wiz roll `GetRandom(100f)` only when not rushed; PaceUp draws
 //! `GetRandom(min, max)` on success; PaceDown draws `GetRandom(min, max')` when it starts.
 
-use crate::sim::defs::{Phase, PositionKeepMode, RunningStyle, RunningStyleEx, SkillModifierParam, TemptationMode};
-use crate::sim::field::{horse_at_order, running_style_horses};
+use crate::sim::defs::{Phase, PositionKeepMode, RunningStyle, RunningStyleEx, SkillModifierParam};
+use crate::sim::ai::temptation::TemptationMode;
+use crate::sim::field::{horse_at_order, horse_by_order, running_style_horses};
+use crate::sim::horse::Horse;
 use crate::sim::race::Race;
 use crate::sim::physics::stats;
 use crate::sim::util::clamp01;
@@ -83,56 +85,58 @@ pub struct PositionKeep {
     pub check_start_interval_sec: f32,
 }
 
-/// Builds horse `i`'s calculator: the check window and every mode's duration and multiplier. No RNG.
-pub fn new_position_keep(race: &mut Race, i: usize) -> PositionKeep {
-    let data = race.data;
-    let kp = &data.param.PositionKeep;
-    let h = &race.horses[i];
-    let course_distance = race.info.race_course_set.distance;
-    let sec_len = course_distance / 24;
-    let ex = h.horse_data.running_style_ex;
-    let style = h.horse_data.running_style;
-    let sections = if ex == RunningStyleEx::None {
-        kp.PositionKeepContinueSection
-    } else {
-        kp.PositionKeepContinueSectionExArray.get(ex as usize - 1).copied().unwrap_or(0)
-    };
-    let continue_distance = (sec_len.wrapping_mul(sections)) as f32;
-    let oonige = ex == RunningStyleEx::Oonige;
-    let pace = PaceState { course_distance, running_style: style, ..Default::default() };
-    let strategy = |mult: f32, kind| PositionKeepStrategy { continue_distance, end_distance: 0.0, base_target_speed_multiply: mult, kind };
-    let strategies = vec![
-        // Null: its multiplier is never read.
-        PositionKeepStrategy::default(),
-        strategy(
-            if oonige { kp.PositionKeepSpeedUpBaseTargetSpeedMultiplyOonige } else { kp.PositionKeepSpeedUpBaseTargetSpeedMultiply },
-            PositionKeepStrategyKind::SpeedUp,
-        ),
-        strategy(
-            if oonige { kp.PositionKeepOvertakeBaseTargetSpeedMultiplyOonige } else { kp.PositionKeepOvertakeBaseTargetSpeedMultiply },
-            PositionKeepStrategyKind::Overtake,
-        ),
-        strategy(kp.PositionKeepPaceUpBaseTargetSpeedMultiply, PositionKeepStrategyKind::PaceUp(pace)),
-        strategy(
-            if h.phase == Phase::MiddleRun {
-                kp.PositionKeepPaceDownBaseTargetSpeedMultiplyPhaseMiddle
-            } else {
-                kp.PositionKeepPaceDownBaseTargetSpeedMultiply
-            },
-            PositionKeepStrategyKind::PaceDown(pace),
-        ),
-        strategy(kp.PositionKeepPaceUpExBaseTargetSpeedMultiply, PositionKeepStrategyKind::PaceUpEx(pace)),
-    ];
-    PositionKeep {
-        check_start_distance: (kp.PositionKeepStartSection - 1) as f32 * sec_len as f32,
-        check_end_distance: kp.PositionKeepEndSection as f32 * sec_len as f32,
-        course_distance,
-        keep_rule: new_keep_rule(style, false, course_distance),
-        is_temptation_prev: false,
-        cur_strategy: 0,
-        strategies,
-        cool_down_sec: 0.0,
-        check_start_interval_sec: 0.0,
+impl PositionKeep {
+    /// Builds horse `i`'s calculator: the check window and every mode's duration and multiplier. No RNG.
+    pub fn new(race: &mut Race, i: usize) -> PositionKeep {
+        let data = race.data;
+        let kp = &data.param.PositionKeep;
+        let h = &race.horses[i];
+        let course_distance = race.info.race_course_set.distance;
+        let sec_len = course_distance / 24;
+        let ex = h.horse_data.running_style_ex;
+        let style = h.horse_data.running_style;
+        let sections = if ex == RunningStyleEx::None {
+            kp.PositionKeepContinueSection
+        } else {
+            kp.PositionKeepContinueSectionExArray.get(ex as usize - 1).copied().unwrap_or(0)
+        };
+        let continue_distance = (sec_len.wrapping_mul(sections)) as f32;
+        let oonige = ex == RunningStyleEx::Oonige;
+        let pace = PaceState { course_distance, running_style: style, ..Default::default() };
+        let strategy = |mult: f32, kind| PositionKeepStrategy { continue_distance, end_distance: 0.0, base_target_speed_multiply: mult, kind };
+        let strategies = vec![
+            // Null: its multiplier is never read.
+            PositionKeepStrategy::default(),
+            strategy(
+                if oonige { kp.PositionKeepSpeedUpBaseTargetSpeedMultiplyOonige } else { kp.PositionKeepSpeedUpBaseTargetSpeedMultiply },
+                PositionKeepStrategyKind::SpeedUp,
+            ),
+            strategy(
+                if oonige { kp.PositionKeepOvertakeBaseTargetSpeedMultiplyOonige } else { kp.PositionKeepOvertakeBaseTargetSpeedMultiply },
+                PositionKeepStrategyKind::Overtake,
+            ),
+            strategy(kp.PositionKeepPaceUpBaseTargetSpeedMultiply, PositionKeepStrategyKind::PaceUp(pace)),
+            strategy(
+                if h.phase == Phase::MiddleRun {
+                    kp.PositionKeepPaceDownBaseTargetSpeedMultiplyPhaseMiddle
+                } else {
+                    kp.PositionKeepPaceDownBaseTargetSpeedMultiply
+                },
+                PositionKeepStrategyKind::PaceDown(pace),
+            ),
+            strategy(kp.PositionKeepPaceUpExBaseTargetSpeedMultiply, PositionKeepStrategyKind::PaceUpEx(pace)),
+        ];
+        PositionKeep {
+            check_start_distance: (kp.PositionKeepStartSection - 1) as f32 * sec_len as f32,
+            check_end_distance: kp.PositionKeepEndSection as f32 * sec_len as f32,
+            course_distance,
+            keep_rule: new_keep_rule(style, false, course_distance),
+            is_temptation_prev: false,
+            cur_strategy: 0,
+            strategies,
+            cool_down_sec: 0.0,
+            check_start_interval_sec: 0.0,
+        }
     }
 }
 
@@ -236,7 +240,7 @@ fn pacemaker(race: &mut Race) -> usize {
 /// Whether any horse ahead of `cur_order` has a more backward running style than `style`.
 fn is_exist_backward_running_style(race: &Race, cur_order: i32, style: RunningStyle) -> bool {
     (0..cur_order).rev().any(|o| {
-        let h = horse_at_order(race, o).expect("a horse at every order ahead");
+        let h = horse_by_order(race, o);
         race.horses[h].horse_data.running_style > style
     })
 }
@@ -469,28 +473,28 @@ fn check_end(race: &mut Race, i: usize, idx: usize) -> bool {
     }
 }
 
-pub fn is_position_keep(race: &Race, i: usize) -> bool {
-    position_keep_mode(race, i) != PositionKeepMode::Null
+pub fn is_position_keep(h: &Horse) -> bool {
+    position_keep_mode(h) != PositionKeepMode::Null
 }
 
-pub fn position_keep_mode(race: &Race, i: usize) -> PositionKeepMode {
-    let pk = &race.horses[i].ai.position_keep;
+pub fn position_keep_mode(h: &Horse) -> PositionKeepMode {
+    let pk = &h.ai.position_keep;
     pk.strategies.get(pk.cur_strategy).map_or(PositionKeepMode::Null, |s| s.mode())
 }
 
-pub fn position_keep_base_target_speed_multiply(race: &Race, i: usize) -> f32 {
-    let pk = &race.horses[i].ai.position_keep;
+pub fn position_keep_base_target_speed_multiply(h: &Horse) -> f32 {
+    let pk = &h.ai.position_keep;
     pk.strategies[pk.cur_strategy].base_target_speed_multiply
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sim::ai::test_race;
+    use crate::sim::test_util::ai_race;
 
     /// Horse 0 = pacemaker (Nige) at 300 m, horse 1 = Sashi `gap` metres behind; 2000 m course.
     fn setup(gap: f32, seed: i32) -> Race<'static> {
-        let mut race = test_race(2);
+        let mut race = ai_race(2);
         race.rng = crate::rng::RaceRandom::new(seed);
         race.info.race_course_set.distance = 2000;
         race.horses[0].horse_data.running_style = RunningStyle::Nige;
@@ -500,7 +504,7 @@ mod tests {
         race.horses[1].cur_order = 1;
         for i in 0..2 {
             race.horses[i].base_wiz_adjusted = 400.0;
-            race.horses[i].ai.position_keep = new_position_keep(&mut race, i);
+            race.horses[i].ai.position_keep = PositionKeep::new(&mut race, i);
         }
         race
     }
@@ -547,7 +551,7 @@ mod tests {
         race.horses[0].horse_data.running_style = RunningStyle::Sashi;
         race.horses[1].horse_data.running_style = RunningStyle::Nige;
         for i in 0..2 {
-            race.horses[i].ai.position_keep = new_position_keep(&mut race, i);
+            race.horses[i].ai.position_keep = PositionKeep::new(&mut race, i);
         }
         crate::sim::field::cache_same_running_style_horses(&mut race);
         crate::sim::field::update_running_style_first_and_last_order_horses(&mut race);
@@ -579,12 +583,12 @@ mod tests {
         assert_eq!(race.horses[0].ai.position_keep.check_start_interval_sec, 2.0);
         update(&mut race, 1, 0.0666);
         assert_eq!(race.rng.draws(), 2);
-        assert_eq!(position_keep_mode(&race, 1), PositionKeepMode::PaceDown);
+        assert_eq!(position_keep_mode(&race.horses[1]), PositionKeepMode::PaceDown);
         assert_eq!(race.horses[1].position_keep_count, 1);
         // Gap reaches the target → mode ends, 1 s cooldown.
         race.horses[1].distance = 250.0;
         update(&mut race, 1, 0.0666);
-        assert_eq!(position_keep_mode(&race, 1), PositionKeepMode::Null);
+        assert_eq!(position_keep_mode(&race.horses[1]), PositionKeepMode::Null);
         assert_eq!(race.horses[1].ai.position_keep.cool_down_sec, 1.0);
     }
     #[test]

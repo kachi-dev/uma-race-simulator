@@ -68,11 +68,7 @@ pub struct RaceParameter {
 
 impl RaceParameter {
     /// Builds the stats with the >1200 halving. No RNG.
-    pub fn new(race: &Race, input: &HorseInput) -> RaceParameter {
-        Self::from_input(&race.data.master, input, STAT_HALVING)
-    }
-
-    /// Body of [`RaceParameter::new`]. The raw fields keep the un-halved values.
+    /// The raw fields keep the un-halved values.
     /// The team-rank bonus is added after halving.
     pub fn from_input(master: &Master, input: &HorseInput, halving: StatHalving) -> RaceParameter {
         let bonus = if input.team_rank == 0 { 0 } else { team_status_bonus(master, input.team_rank) };

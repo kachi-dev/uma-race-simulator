@@ -6,7 +6,7 @@ use crate::sim::physics::stats;
 use crate::sim::record;
 
 /// Dueling update (after the overlap and spot struggle updates, before the pacemaker). Reads the candidate lists
-/// built by `ai::update_around_horses_param` this frame.
+/// built by `ai::around::update_around_horses_param` this frame.
 ///
 /// Entry, per horse in index order, for a horse that is not dueling and has never dueled (one that crossed the goal
 /// this frame still can): the first partner in its `compete_fight_near` (list order) with

@@ -33,18 +33,6 @@ unsafe impl GlobalAlloc for Counting {
 #[global_allocator]
 static GLOBAL: Counting = Counting;
 
-fn collect_json(dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(rd) = std::fs::read_dir(dir) else { return };
-    for e in rd.flatten() {
-        let p = e.path();
-        if p.is_dir() {
-            collect_json(&p, out);
-        } else if p.extension().is_some_and(|x| x == "json") {
-            out.push(p);
-        }
-    }
-}
-
 fn output_hash(o: &SimOutput) -> u64 {
     let mut h = DefaultHasher::new();
     for f in &o.frames {
@@ -69,9 +57,7 @@ fn main() {
     let dir = args.first().expect("usage: bench <corpus dir> [reps] [hash out file] [data_dir]");
     let reps: usize = args.get(1).and_then(|r| r.parse().ok()).unwrap_or(3);
     let data_dir = PathBuf::from(args.get(3).map_or(uma_race_sim::data::DATA_DIR, |s| s.as_str()));
-    let mut files = Vec::new();
-    collect_json(Path::new(dir), &mut files);
-    files.sort();
+    let files = corpus::race_files(Path::new(dir));
 
     let t = Instant::now();
     let races: Vec<_> = files.iter().filter_map(|f| {

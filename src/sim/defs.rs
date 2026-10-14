@@ -78,30 +78,6 @@ pub enum PositionKeepMode {
     PaceUpEx = 5,
 }
 
-/// Rushed (temptation) mode; recorded per frame as i8 (`HorseFrame::temptation_mode`).
-#[repr(i32)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum TemptationMode {
-    #[default]
-    Null = 0,
-    PositionSashi = 1,
-    PositionSenko = 2,
-    PositionNige = 3,
-    Boost = 4,
-}
-
-#[repr(i32)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum SkillTriggerOperator {
-    #[default]
-    Equal = 0,
-    NotEqual = 1,
-    Greater = 2,
-    GreaterEqual = 3,
-    Lesser = 4,
-    LesserEqual = 5,
-}
-
 #[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SkillModifierParam {
@@ -154,15 +130,6 @@ pub mod straight_front_type {
     pub const ACROSS_FRONT: i32 = 2;
 }
 
-pub mod course_param_type {
-    pub const CORNER: i32 = 0;
-    pub const GROUND_CHANGE: i32 = 1;
-    pub const STRAIGHT: i32 = 2;
-    pub const LANE_MAX_CHANGE: i32 = 3;
-    pub const MOVE_LANE_POINT: i32 = 7;
-    pub const SLOPE: i32 = 11;
-}
-
 /// The values the sim branches on.
 pub mod race_type {
     pub const STORY: i32 = 3;
@@ -176,9 +143,3 @@ pub mod initial_lane_type {
     pub const EXTRA_SPACE_AFTER_14: i32 = 3;
     pub const EXTRA_SPACE_AFTER_8: i32 = 4;
 }
-
-/// Number of order-in / order-out skill condition types (OrderIn10..OrderIn90).
-pub const ORDER_IN_OUT_TYPE_COUNT: usize = 9;
-
-/// Indexed by horse index.
-pub const ORDER_CHANGE_COOLDOWN_SLOTS: usize = 18;

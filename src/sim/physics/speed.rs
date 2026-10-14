@@ -4,7 +4,7 @@ use crate::sim::defs::{Phase, PositionKeepMode, RunningStyle, RunningStyleEx, Sk
 use crate::sim::horse::Horse;
 use crate::sim::race::Race;
 use crate::sim::util::{approximately, clamp, clamp01, f64_to_i32, mathf_log10, max, min};
-use crate::sim::ai::{self, compete_fight, position_keep};
+use crate::sim::ai::{self, compete_fight, compete_top, position_keep};
 use crate::sim::physics::{last_spurt, stats};
 
 /// Per-phase acceleration multipliers of a running style (default 1.0).
@@ -48,17 +48,6 @@ pub fn init_phase_accel_rate(race: &mut Race, i: usize) {
         Some((true, k)) => PhaseAccelCoef { start: x[k].Start, middle: x[k].Middle, end: x[k].End, last: x[k].Last },
         None => PhaseAccelCoef::default(),
     };
-}
-
-/// Target-speed add during a spot struggle, `(AddParam1Coef1 * Guts)^Coef2 * Coef3` with the live Guts.
-/// `is_compete_top` is set late in the frame, so this applies from the next frame on.
-fn compete_top_add_target_speed(race: &Race, i: usize) -> f32 {
-    let h = &race.horses[i];
-    if !h.is_compete_top {
-        return 0.0;
-    }
-    let p = &race.data.param.CompeteTop;
-    crate::sim::util::mathf_pow(p.AddParam1Coef1 * stats::guts(h), p.AddParam1Coef2) * p.AddParam1Coef3
 }
 
 /// Never negative.
@@ -107,13 +96,15 @@ pub struct BaseTargetSpeeds {
     pub is_initialized: bool,
 }
 
-/// An empty calculator (no RNG); until initialised every lookup returns the race base speed.
-pub fn new_base_target_speeds(race: &Race) -> BaseTargetSpeeds {
-    BaseTargetSpeeds {
-        section_change_distance: race.info.course_section_distance,
-        sections: vec![BaseSpeedInfo::default(); 24],
-        race_base_speed: race.info.base_speed,
-        is_initialized: false,
+impl BaseTargetSpeeds {
+    /// An empty calculator (no RNG); until initialised every lookup returns the race base speed.
+    pub fn new(race: &Race) -> BaseTargetSpeeds {
+        BaseTargetSpeeds {
+            section_change_distance: race.info.course_section_distance,
+            sections: vec![BaseSpeedInfo::default(); 24],
+            race_base_speed: race.info.base_speed,
+            is_initialized: false,
+        }
     }
 }
 
@@ -176,8 +167,7 @@ fn base_target_speed_at(c: &BaseTargetSpeeds, distance: f32) -> f32 {
     info.base_target_speed_random + info.base_target_speed
 }
 
-pub fn base_target_speed(race: &Race, i: usize) -> f32 {
-    let h = &race.horses[i];
+pub fn base_target_speed(h: &Horse) -> f32 {
     base_target_speed_at(&h.ai.base_target_speeds, h.distance)
 }
 
@@ -196,34 +186,36 @@ pub struct TargetSpeed {
     pub force_in_move_add_target_speed: f32,
 }
 
-/// Draws the style's force-in-move target-speed add. One RNG draw when the style add != 0.
-pub fn new_target_speed(race: &mut Race, i: usize) -> TargetSpeed {
-    let p = &race.data.param;
-    let a = match race.horses[i].horse_data.running_style {
-        RunningStyle::Nige => p.forceInMoveTargetSpeedAddRunningOut,
-        RunningStyle::Senko => p.forceInMoveTargetSpeedAddProceding,
-        RunningStyle::Sashi => p.forceInMoveTargetSpeedAddInsertion,
-        RunningStyle::Oikomi => p.forceInMoveTargetSpeedAddChasing,
-        RunningStyle::None => 0.0,
-    };
-    let add = if approximately(a, 0.0) {
-        0.0
-    } else {
-        let lo = if a > 0.0 { 0.0 } else { -p.forceInMoveTargetSpeedAddRandomRange };
-        let hi = if a > 0.0 { p.forceInMoveTargetSpeedAddRandomRange } else { 0.0 };
-        race.rng.random_float_range(lo, hi) + a
-    };
-    TargetSpeed { force_in_move_add_target_speed: add, ..Default::default() }
+impl TargetSpeed {
+    /// Draws the style's force-in-move target-speed add. One RNG draw when the style add != 0.
+    pub fn new(race: &mut Race, i: usize) -> TargetSpeed {
+        let p = &race.data.param;
+        let a = match race.horses[i].horse_data.running_style {
+            RunningStyle::Nige => p.forceInMoveTargetSpeedAddRunningOut,
+            RunningStyle::Senko => p.forceInMoveTargetSpeedAddProceding,
+            RunningStyle::Sashi => p.forceInMoveTargetSpeedAddInsertion,
+            RunningStyle::Oikomi => p.forceInMoveTargetSpeedAddChasing,
+            RunningStyle::None => 0.0,
+        };
+        let add = if approximately(a, 0.0) {
+            0.0
+        } else {
+            let lo = if a > 0.0 { 0.0 } else { -p.forceInMoveTargetSpeedAddRandomRange };
+            let hi = if a > 0.0 { p.forceInMoveTargetSpeedAddRandomRange } else { 0.0 };
+            race.rng.random_float_range(lo, hi) + a
+        };
+        TargetSpeed { force_in_move_add_target_speed: add, ..Default::default() }
+    }
 }
 
 /// Computes this frame's target speed (the order of the terms is exact).
 pub fn calc_target_speed(race: &mut Race, i: usize) {
     let p = &race.data.param;
-    let mut t = if last_spurt::is_last_spurt(race, i) { last_spurt::last_spurt_target_speed(race, i) } else { base_target_speed(race, i) };
-    if position_keep::is_position_keep(race, i) {
-        t = position_keep::position_keep_base_target_speed_multiply(race, i) * t;
-    }
     let h = &race.horses[i];
+    let mut t = if last_spurt::is_last_spurt(h) { last_spurt::last_spurt_target_speed(h) } else { base_target_speed(h) };
+    if position_keep::is_position_keep(h) {
+        t = position_keep::position_keep_base_target_speed_multiply(h) * t;
+    }
     if h.ai.is_force_in_move_enable {
         t = t + h.ai.target_speed_calc.force_in_move_add_target_speed;
     }
@@ -248,7 +240,7 @@ pub fn calc_target_speed(race: &mut Race, i: usize) {
     }
     t = t + slope;
     // The spot struggle and duel adds come after the slope term, each add rounded to f32.
-    t = t + compete_top_add_target_speed(race, i);
+    t = t + compete_top::add_target_speed(race, i);
     t = t + compete_fight::add_target_speed(race, i);
     if h.hp <= 0.0 {
         t = h.min_speed;
@@ -283,7 +275,7 @@ pub fn update_min_speed(race: &mut Race, i: usize) {
         let g = stats::guts(h);
         // Evaluated in f64 as one expression.
         h.min_speed = ((g * p.Speed.MinSpeedGutsCoefSqrt).sqrt() as f64 * p.Speed.MinSpeedGutsCoef as f64 + h.race_default_min_speed as f64) as f32;
-        if let Some(fb) = ai::block_horse_front(race, i) {
+        if let Some(fb) = ai::around::block_horse_front(&race.horses[i]) {
             let fb_min = race.horses[fb].min_speed;
             let h = &mut race.horses[i];
             h.min_speed = min(h.min_speed, fb_min);
@@ -319,7 +311,7 @@ pub fn update_self_speed(race: &mut Race, i: usize, dt: f32, max_speed: f32) -> 
         // `accel * dt` is rounded to f32 before the add.
         v = min(t, accel * dt + v);
     } else if v > t {
-        let pace_down = position_keep::is_position_keep(race, i) && position_keep::position_keep_mode(race, i) == PositionKeepMode::PaceDown;
+        let pace_down = position_keep::is_position_keep(&race.horses[i]) && position_keep::position_keep_mode(&race.horses[i]) == PositionKeepMode::PaceDown;
         let h = &race.horses[i];
         let dec = if h.is_finished {
             4.0 // not multiplied by declBase

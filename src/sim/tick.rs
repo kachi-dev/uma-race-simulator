@@ -10,7 +10,7 @@ use crate::sim::field::{self, update_overlap};
 use crate::sim::race::{self, DT, Race};
 use crate::sim::record::{self, Recorder};
 use crate::sim::util::approximately;
-use crate::sim::ai::{self, compete_fight, compete_top, lane, order, overtake, pacemaker, position_keep, temptation};
+use crate::sim::ai::{self, around, compete_fight, compete_top, lane, order, overtake, pacemaker, position_keep, temptation};
 use crate::sim::course;
 use crate::sim::debug;
 use crate::sim::horse;
@@ -63,7 +63,7 @@ fn first_frame(race: &mut Race) -> bool {
 /// Returns whether every horse has finished.
 fn frame(race: &mut Race, dt: f32) -> bool {
     let n = race.horses.len();
-    ai::snapshot_scan_view(race);
+    around::snapshot_scan_view(race);
     for i in 0..n {
         pre_update(race, i, dt);
     }
@@ -120,7 +120,7 @@ fn frame(race: &mut Race, dt: f32) -> bool {
 
 fn pre_update(race: &mut Race, i: usize, dt: f32) {
     race.horses[i].move_distance = 0.0;
-    ai::update_around_horses_param(race, i, dt);
+    around::update_around_horses_param(race, i, dt);
     ai::update_after_goal_time(race, i, dt);
     race.horses[i].skill_modifier_receiver.update_modifiers(dt);
     let h = &mut race.horses[i];
@@ -139,8 +139,8 @@ fn update_horse(race: &mut Race, i: usize, dt: f32) -> bool {
     }
     overtake::update_overtake_target_time(race, i, dt);
     overtake::update_overtake_target_have_time(race, i, dt);
-    ai::update_block_time(race, i, dt);
-    let is_last_spurt = last_spurt::is_last_spurt(race, i);
+    around::update_block_time(race, i, dt);
+    let is_last_spurt = last_spurt::is_last_spurt(&race.horses[i]);
     let h = &mut race.horses[i];
     if !h.is_last_spurt_prev && is_last_spurt {
         h.last_spurt_order = h.cur_order;
@@ -149,8 +149,8 @@ fn update_horse(race: &mut Race, i: usize, dt: f32) -> bool {
     if h.final_corner_end_order == -1 && h.is_final_corner && h.cur_corner == 0 {
         h.final_corner_end_order = h.cur_order;
     }
-    trigger::update_order_in_continue(race, i);
-    trigger::update_order_out_continue(race, i);
+    trigger::order_in_out::update_order_in_continue(race, i);
+    trigger::order_in_out::update_order_out_continue(race, i);
     horse::check_finished(race, i);
     race.horses[i].is_finished
 }
@@ -264,7 +264,7 @@ fn ai_decisions(race: &mut Race, i: usize, dt: f32) {
 }
 
 fn post_update(race: &mut Race, i: usize, dt: f32) {
-    ai::update_in_front_horse_near_time(race, i, dt);
-    ai::update_behind_horse_near_time(race, i, dt);
-    ai::update_behind_horse_near_time_param_set(race, i, dt);
+    around::update_in_front_horse_near_time(race, i, dt);
+    around::update_behind_horse_near_time(race, i, dt);
+    around::update_behind_horse_near_time_param_set(race, i, dt);
 }

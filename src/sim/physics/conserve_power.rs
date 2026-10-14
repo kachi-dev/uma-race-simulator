@@ -39,16 +39,23 @@ pub fn on_compete_top_start(race: &mut Race, i: usize) {
     c.activity_coef *= coef_by(&cp.ConservePowerDecreaseAccelCoefArray, |x| x.Mode == 3, |x| x.Coef);
 }
 
-/// Creates the calculator after the gate skills. `PowerStat = base Power + 0.5 * max(raw Power - 1200, 0) + skill
-/// Power`; only horses above 1200 conserve power.
-pub fn new(race: &Race, i: usize) -> ConservePower {
-    let h = &race.horses[i];
-    let rp = h.horse_data.race_param;
-    let skill_add = h.skill_modifier_receiver.apply_modifier(SkillModifierParam::Power, 0.0);
-    let power_stat = rp.base_pow + 0.5 * (rp.raw_pow - 1200).max(0) as f32 + skill_add;
-    // From the July 2026 update on.
-    let is_active = power_stat > 1200.0 && !race.data.era.pre_2026_07_courses;
-    ConservePower { is_active, power_stat, activity_coef: 1.0, ..Default::default() }
+impl ConservePower {
+    /// Creates the calculator after the gate skills. `PowerStat = base Power + 0.5 * max(raw Power - 1200, 0) + skill
+    /// Power`; only horses above 1200 conserve power.
+    pub fn new(race: &Race, i: usize) -> ConservePower {
+        let h = &race.horses[i];
+        let rp = h.horse_data.race_param;
+        let skill_add = h.skill_modifier_receiver.apply_modifier(SkillModifierParam::Power, 0.0);
+        let power_stat = rp.base_pow + 0.5 * (rp.raw_pow - 1200).max(0) as f32 + skill_add;
+        // From the July 2026 update on.
+        let is_active = power_stat > 1200.0 && !race.data.era.pre_2026_07_courses;
+        ConservePower { is_active, power_stat, activity_coef: 1.0, ..Default::default() }
+    }
+}
+
+/// Re-creates the conserve-power calculator.
+pub fn update_activate_status(race: &mut Race, i: usize) {
+    race.horses[i].ai.conserve_power = ConservePower::new(race, i);
 }
 
 /// Conserve power update (AI update step 9, not when finished).
@@ -68,7 +75,7 @@ pub fn update(race: &mut Race, i: usize, dt: f32) {
         return;
     }
     if !c.is_released {
-        if last_spurt::is_last_spurt(race, i) {
+        if last_spurt::is_last_spurt(&race.horses[i]) {
             c.is_released = true;
             let dtype = race.info.course_distance_type;
             let dcoef = coef_by(&cp.ReleaseConservePowerActivityTimeDistanceTypeCoefArray, |x| x.DistanceType == dtype, |x| x.Coef);
@@ -84,7 +91,7 @@ pub fn update(race: &mut Race, i: usize, dt: f32) {
                 record::add_horse_event(race, event_kind::CONSERVE_POWER_RELEASE, race.horses[i].horse_data.horse_index as usize, t);
             }
         } else {
-            let mode = position_keep::position_keep_mode(race, i);
+            let mode = position_keep::position_keep_mode(&race.horses[i]);
             let tempt = race.horses[i].ai.temptation.is_temptation;
             // Entering rushed (decrease mode 4; the spot struggle's mode 3 is `on_compete_top_start`).
             if tempt && !c.is_temptation_prev {

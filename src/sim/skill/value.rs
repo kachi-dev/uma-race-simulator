@@ -5,7 +5,7 @@
 //! A calculator's owner is always the skill owner (`SkillDetailRef::horse`).
 
 use crate::sim::race::Race;
-use crate::sim::skill::trigger::read::first_horse;
+use crate::sim::field::first_horse;
 use crate::sim::skill::SkillDetailRef;
 use crate::sim::util;
 use crate::data::GameData;
@@ -57,27 +57,29 @@ fn members<'r>(race: &'r Race, team_id: i32) -> &'r [usize] {
     race.field.teams.iter().find(|t| t.team_id == team_id).map_or(&[], |t| &t.members)
 }
 
-/// No RNG (random usages draw per read). Unknown usages fall back to direct.
-pub fn new_ability_value(race: &mut Race, owner: usize, usage: i32, ability_value_base: f32, level: i32, ability_type: i32, level_usage: i32) -> AbilityValue {
-    let p = &race.data.param.Skill;
-    let mut c = AbilityValue { usage, ability_value_base, level, ability_type, level_usage, ..Default::default() };
-    match usage {
-        10 => {
-            let n = race.input.horses[owner].single_mode_win_count;
-            c.ability_value = asc_lookup(p.RaceWinCountCoefAscArray.iter().map(|e| (e.WinCountThreshold, e.Multiply)), n) * ability_value_base;
+impl AbilityValue {
+    /// No RNG (random usages draw per read). Unknown usages fall back to direct.
+    pub fn new(race: &mut Race, owner: usize, usage: i32, ability_value_base: f32, level: i32, ability_type: i32, level_usage: i32) -> AbilityValue {
+        let p = &race.data.param.Skill;
+        let mut c = AbilityValue { usage, ability_value_base, level, ability_type, level_usage, ..Default::default() };
+        match usage {
+            10 => {
+                let n = race.input.horses[owner].single_mode_win_count;
+                c.ability_value = asc_lookup(p.RaceWinCountCoefAscArray.iter().map(|e| (e.WinCountThreshold, e.Multiply)), n) * ability_value_base;
+            }
+            12 => {
+                let n = race.input.horses[owner].fan_count;
+                c.ability_value = asc_lookup(p.FanCountCoefAscArray.iter().map(|e| (e.FanCountThreshold, e.Multiply)), n) * ability_value_base;
+            }
+            13 => {
+                let rp = &race.horses[owner].horse_data.race_param;
+                c.maximum_raw_status = [rp.raw_speed, rp.raw_guts, rp.raw_pow, rp.raw_stamina, rp.raw_wiz].into_iter().max().unwrap();
+            }
+            2..=9 | 11 | 14..=23 => {}
+            _ => c.ability_value = ability_value_base,
         }
-        12 => {
-            let n = race.input.horses[owner].fan_count;
-            c.ability_value = asc_lookup(p.FanCountCoefAscArray.iter().map(|e| (e.FanCountThreshold, e.Multiply)), n) * ability_value_base;
-        }
-        13 => {
-            let rp = &race.horses[owner].horse_data.race_param;
-            c.maximum_raw_status = [rp.raw_speed, rp.raw_guts, rp.raw_pow, rp.raw_stamina, rp.raw_wiz].into_iter().max().unwrap();
-        }
-        2..=9 | 11 | 14..=23 => {}
-        _ => c.ability_value = ability_value_base,
+        c
     }
-    c
 }
 
 /// The ability's value, read once per activation. Usages 8/9 draw one `random_int` per call.
@@ -223,9 +225,11 @@ pub fn apply_level_to_value(data: &GameData, level: i32, ability_type: i32, valu
     }
 }
 
-/// No RNG.
-pub fn new_ability_time(usage: i32, ability_time_base: f32, ability_time_by_distance_rate: f32) -> AbilityTime {
-    AbilityTime { usage, ability_time_base, ability_time_by_distance_rate, increment_count: 0, additional_ability_time: 0.0 }
+impl AbilityTime {
+    /// No RNG.
+    pub fn new(usage: i32, ability_time_base: f32, ability_time_by_distance_rate: f32) -> AbilityTime {
+        AbilityTime { usage, ability_time_base, ability_time_by_distance_rate, increment_count: 0, additional_ability_time: 0.0 }
+    }
 }
 
 fn time_calc<'r>(race: &'r Race, r: SkillDetailRef) -> &'r AbilityTime {
@@ -306,56 +310,14 @@ pub fn calc_cool_down_time_by_distance(cool_down_time: f32, course_distance: i32
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use super::*;
-    use crate::api::{HorseInput, RaceInput};
-    use crate::data::DataEra;
-    use crate::sim::horse::Horse;
-    use crate::sim::field::HorseTeamInfo;
     use crate::sim::ai::order::Standings;
-    use crate::sim::skill::SkillBase;
-    use std::sync::OnceLock;
-
-    pub(crate) fn data() -> &'static GameData {
-        static D: OnceLock<GameData> = OnceLock::new();
-        D.get_or_init(|| GameData::load(std::path::Path::new(crate::data::DATA_DIR), DataEra::current()).unwrap())
-    }
-
-    /// A bare Race with default horses (no init), each with one skill holding two empty details.
-    pub(crate) fn test_race(input: &RaceInput, seed: i32) -> Race<'_> {
-        let n = input.horses.len();
-        let mut horses = vec![Horse::default(); n];
-        for (i, h) in horses.iter_mut().enumerate() {
-            h.horse_data.horse_index = i as i32;
-            h.final_corner_end_order = -1;
-            h.skill_manager.skills.push(SkillBase::default());
-        }
-        Race {
-            data: data(),
-            input,
-            info: Default::default(),
-            rng: crate::rng::RaceRandom::new(seed),
-            horses,
-            field: Default::default(),
-            course: Default::default(),
-            course_lane: Default::default(),
-            event_manager: Default::default(),
-            accumulate_time_since_start: 0.0,
-            behind_lane_threshold: 0.0,
-            world_per_metre: 0.0,
-            distance_diff_max: 0.0,
-            is_simulate_end: false,
-            recorder: Default::default(),
-            next_modifier_id: 0,
-        }
-    }
-
-    pub(crate) fn input(n: usize) -> RaceInput {
-        RaceInput { horses: vec![HorseInput::default(); n], ..Default::default() }
-    }
+    use crate::sim::field::HorseTeamInfo;
+    use crate::sim::test_util::{data, input, skill_race};
 
     fn val(race: &mut Race, owner: usize, usage: i32, base: f32) -> f32 {
-        let c = new_ability_value(race, owner, usage, base, 1, 1, 0);
+        let c = AbilityValue::new(race, owner, usage, base, 1, 1, 0);
         calc_ability_value(race, owner, &c)
     }
 
@@ -376,7 +338,7 @@ pub(crate) mod tests {
         let mut inp = input(3);
         inp.horses[0].single_mode_win_count = 10; // < 14 → 0.9
         inp.horses[0].fan_count = 200000; // ≥ 160000 → 1.2
-        let mut race = test_race(&inp, 1);
+        let mut race = skill_race(&inp, 1);
         let base = 0.35f32;
         assert_eq!(val(&mut race, 0, 0, base), base);
         assert_eq!(val(&mut race, 0, 1, base), base);
@@ -401,7 +363,7 @@ pub(crate) mod tests {
         // maximum raw status (read at construction): max 1050 → < 1100 → 1.1
         let rp = &mut race.horses[0].horse_data.race_param;
         (rp.raw_speed, rp.raw_stamina, rp.raw_pow, rp.raw_guts, rp.raw_wiz) = (900, 1050, 700, 300, 1000);
-        let c = new_ability_value(&mut race, 0, 13, base, 1, 1, 0);
+        let c = AbilityValue::new(&mut race, 0, 13, base, 1, 1, 0);
         race.horses[0].horse_data.race_param.raw_stamina = 2000;
         assert_eq!(calc_ability_value(&mut race, 0, &c), 1.1f32 * base);
         // specific tag count: 3 → (3 < 5) 1.0; 0 → 0.0
@@ -428,7 +390,7 @@ pub(crate) mod tests {
         assert_eq!(val(&mut race, 0, 20, base), 2.0 * base);
         assert_eq!(val(&mut race, 0, 21, base), base);
         // distance diff top: leader 25 m ahead → +(f32)1000*0.0001f (level usage 0) + base
-        race.field.standings = Standings::init(3);
+        race.field.standings = Standings::new(3);
         race.field.standings.horse_array_by_order.swap(0, 1);
         race.horses[1].distance = 125.0;
         race.horses[0].distance = 100.0;
@@ -441,10 +403,10 @@ pub(crate) mod tests {
     #[test]
     fn multiply_random_draws_once_per_read() {
         let inp = input(1);
-        let mut race = test_race(&inp, 12345);
+        let mut race = skill_race(&inp, 12345);
         let mut reference = crate::rng::RaceRandom::new(12345);
         let base = -1.0f32;
-        let c = new_ability_value(&mut race, 0, 8, base, 1, 9, 0);
+        let c = AbilityValue::new(&mut race, 0, 8, base, 1, 9, 0);
         assert_eq!(race.rng.draws(), 0); // construction draws nothing
         let mut seen = [false; 3];
         for _ in 0..200 {
@@ -461,10 +423,10 @@ pub(crate) mod tests {
     #[test]
     fn time_usages() {
         let inp = input(2);
-        let mut race = test_race(&inp, 1);
+        let mut race = skill_race(&inp, 1);
         let r = SkillDetailRef { horse: 0, skill: 0, detail: 0 };
         let set = |race: &mut Race, usage: i32, base: f32, rate: f32| {
-            let c = new_ability_time(usage, base, rate);
+            let c = AbilityTime::new(usage, base, rate);
             race.horses[0].skill_manager.skills[0].details[0].time = c;
         };
         set(&mut race, 1, 12.0, 2.4);
@@ -477,7 +439,7 @@ pub(crate) mod tests {
         set(&mut race, 7, 12.0, 2.4);
         assert_eq!(ability_time(&race, r), 36.0);
         // distance diff top: leader (horse 1) at 70, self at 40: (30 / 62.5f) + 0.8f = 1.28f; * 12 = 15.36f (numpy f32)
-        race.field.standings = Standings::init(2);
+        race.field.standings = Standings::new(2);
         race.field.standings.horse_array_by_order.swap(0, 1);
         race.horses[1].distance = 70.0;
         race.horses[0].distance = 40.0;

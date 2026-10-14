@@ -3,12 +3,21 @@
 
 pub mod lanes;
 
-use crate::sim::defs::{course_param_type, straight_front_type, SlopeType};
+use crate::sim::defs::{straight_front_type, SlopeType};
 use crate::sim::race::{Race, RaceInfo};
 use crate::sim::util::intro_sort;
 use crate::data::{CourseParam, GameData};
 
-/// `param._paramType` is a `defs::course_param_type`.
+pub mod course_param_type {
+    pub const CORNER: i32 = 0;
+    pub const GROUND_CHANGE: i32 = 1;
+    pub const STRAIGHT: i32 = 2;
+    pub const LANE_MAX_CHANGE: i32 = 3;
+    pub const MOVE_LANE_POINT: i32 = 7;
+    pub const SLOPE: i32 = 11;
+}
+
+/// `param._paramType` is a [`course_param_type`].
 #[derive(Clone, Debug, Default)]
 pub struct CourseEvent {
     pub param: CourseParam,

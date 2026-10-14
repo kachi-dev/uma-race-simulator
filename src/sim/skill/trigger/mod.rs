@@ -4,17 +4,30 @@
 //! Every trigger is a [`SkillTrigger`] (shared fields) + a [`SkillTriggerKind`] (the keyword's own state).
 
 pub mod kind;
+pub mod order_in_out;
 pub mod read;
 pub mod window;
 
 use crate::sim::ai;
-use crate::sim::defs::SkillTriggerOperator;
 use crate::sim::race::Race;
 use crate::sim::skill::trigger::kind::{create_trigger, SkillTriggerKind};
-use crate::sim::skill::trigger::read::{activate_skill_count, first_horse, horse_by_order, last_horse_index, value_lh};
+use crate::sim::field::{first_horse, horse_by_order, last_horse_index};
+use crate::sim::skill::trigger::read::{activate_skill_count, value_lh};
 use crate::sim::skill::trigger::window::{all_corner_random_init, calc_final_corner_distance, init_distance};
 use crate::sim::skill::{self, SkillDetailRef};
 use crate::sim::util::{approximately, f32_to_i32};
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SkillTriggerOperator {
+    #[default]
+    Equal = 0,
+    NotEqual = 1,
+    Greater = 2,
+    GreaterEqual = 3,
+    Lesser = 4,
+    LesserEqual = 5,
+}
 
 /// A parsed condition string; `Null` for an empty one.
 #[derive(Clone, Debug, Default)]
@@ -285,7 +298,7 @@ fn check_activate(race: &mut Race, r: SkillDetailRef, t: &mut SkillTrigger, othe
         // True once, on the first check in the last straight.
         K::LastStraightOneTime(prev) => {
             if !*prev {
-                *prev = ai::is_straight_last(&race.horses[owner]);
+                *prev = ai::around::is_straight_last(&race.horses[owner]);
                 return *prev;
             }
             false
@@ -620,63 +633,9 @@ pub fn collection_has_activate_other_skill_detail(arena: &[SkillTrigger], c: &Sk
     arena[c.range()].iter().any(|t| matches!(t.kind, SkillTriggerKind::ActivateOtherSkillDetail(_)))
 }
 
-/// Order-in/out thresholds in %.
-const ORDER_IN_OUT_PER: [i32; 9] = [10, 20, 30, 40, 50, 60, 70, 80, 90];
-
 /// `v` % of `n`, rounded half up (f32, truncating cast).
-fn rescale_rate(v: i32, n: i32) -> i32 {
+pub(super) fn rescale_rate(v: i32, n: i32) -> i32 {
     f32_to_i32(v as f32 / 100.0 * n as f32 + 0.5)
-}
-
-/// `rescale_rate(ORDER_IN_OUT_PER[k], n)` for n < 32, precomputed (the order-in/out updates run per horse per frame).
-/// Same f32 ops at compile time; the values are small, so `as i32` equals `f32_to_i32`.
-const ORDER_IN_OUT_TH: [[i32; 9]; 32] = {
-    let mut t = [[0; 9]; 32];
-    let mut n = 0;
-    while n < 32 {
-        let mut k = 0;
-        while k < 9 {
-            t[n][k] = (ORDER_IN_OUT_PER[k] as f32 / 100.0 * n as f32 + 0.5) as i32;
-            k += 1;
-        }
-        n += 1;
-    }
-    t
-};
-
-fn order_in_out_th(k: usize, n: i32) -> i32 {
-    match ORDER_IN_OUT_TH.get(n as usize) {
-        Some(t) if n >= 0 => t[k],
-        _ => rescale_rate(ORDER_IN_OUT_PER[k], n),
-    }
-}
-
-/// Clears each order-in flag once the horse falls behind that threshold (from 5 s into the race).
-pub fn update_order_in_continue(race: &mut Race, i: usize) {
-    if race.accumulate_time_since_start < 5.0 {
-        return;
-    }
-    let n = race.info.num_race_horses;
-    let h = &mut race.horses[i];
-    for k in 0..ORDER_IN_OUT_PER.len() {
-        if h.order_in_continue[k] && order_in_out_th(k, n) < h.cur_order + 1 {
-            h.order_in_continue[k] = false;
-        }
-    }
-}
-
-/// Clears each order-out flag once the horse gets ahead of that threshold (from 5 s into the race).
-pub fn update_order_out_continue(race: &mut Race, i: usize) {
-    if race.accumulate_time_since_start < 5.0 {
-        return;
-    }
-    let n = race.info.num_race_horses;
-    let h = &mut race.horses[i];
-    for k in 0..ORDER_IN_OUT_PER.len() {
-        if h.order_out_continue[k] && h.cur_order + 1 < order_in_out_th(k, n) {
-            h.order_out_continue[k] = false;
-        }
-    }
 }
 
 #[cfg(test)]
@@ -685,15 +644,6 @@ mod tests {
     use crate::sim::skill::trigger::kind::order_type;
     use crate::data::{DataEra, GameData};
     use std::path::Path;
-
-    #[test]
-    fn order_in_out_table() {
-        for n in -1..40 {
-            for k in 0..9 {
-                assert_eq!(order_in_out_th(k, n), rescale_rate(ORDER_IN_OUT_PER[k], n), "n {n} k {k}");
-            }
-        }
-    }
 
     #[test]
     fn parse_terms() {
@@ -716,7 +666,7 @@ mod tests {
         if !dir.exists() {
             return;
         }
-        let mut race = crate::sim::ai::test_race(2);
+        let mut race = crate::sim::test_util::ai_race(2);
         race.horses[0].skill_manager.skills.push(Default::default());
         race.info.horse_index_by_popularity = vec![0, 1];
         let r = SkillDetailRef { horse: 0, skill: 0, detail: 0 };

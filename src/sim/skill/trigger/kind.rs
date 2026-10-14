@@ -1,7 +1,7 @@
 //! Trigger keywords: what each one checks ([`SkillTriggerKind`]) and how a keyword builds its trigger. Building
 //! also picks the window of the random-position triggers, so construction-time RNG draws happen in the game's order.
 
-use crate::sim::defs::SkillTriggerOperator;
+use crate::sim::skill::trigger::SkillTriggerOperator;
 use crate::sim::field;
 use crate::sim::race::Race;
 use crate::sim::skill::trigger::window::{all_corner_random_init, init_distance, DistanceInit, DistanceWindow};

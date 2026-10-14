@@ -39,6 +39,8 @@ pub mod race;
 pub mod record;
 pub mod skill;
 pub mod tick;
+#[cfg(test)]
+mod test_util;
 pub mod util;
 
 use crate::api::{RaceInput, SimOutput};

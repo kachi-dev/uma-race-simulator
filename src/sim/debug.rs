@@ -25,8 +25,8 @@ pub fn step(race: &Race) {
         println!("STEP t={t:.4} h{i} d={} v={} tv={} hp={}/{} lane={} ord={} cf={}{} g={} ct={} mode={:?} near=[{}]",
             h.distance, h.last_speed, h.ai.target_speed, h.hp, h.max_hp, h.lane_distance, h.cur_order,
             h.is_compete_fight as u8, h.compete_fight_count, h.compete_fight_group, h.is_compete_top as u8,
-            crate::sim::ai::position_keep::position_keep_mode(race, i), cf.join(" "));
+            crate::sim::ai::position_keep::position_keep_mode(h), cf.join(" "));
         println!("     slope={:?}/{} pow={} guts={} lms={} lss={} m5={} min={} cpa={}", h.slope_type, h.slope_per, crate::sim::physics::stats::pow(h), crate::sim::physics::stats::guts(h), h.lane_move_speed, h.last_self_speed, h.skill_modifier_receiver.apply_modifier(crate::sim::defs::SkillModifierParam::CurrentSpeed, 0.0), h.min_speed, h.ai.conserve_power.accel_value);
-        println!("     ctr={} sec={} ls={} lsd={} res={} phase={:?} blk={:?}", h.compete_top_remain_time, crate::sim::horse::calc_section(race, i), crate::sim::physics::last_spurt::is_last_spurt(race, i) as u8, h.ai.last_spurt_start_distance, h.ai.last_spurt_calc_result, h.phase, h.ai.block_horse.map(|k| h.ai.around_horses[k].info));
+        println!("     ctr={} sec={} ls={} lsd={} res={} phase={:?} blk={:?}", h.compete_top_remain_time, crate::sim::horse::calc_section(race, i), crate::sim::physics::last_spurt::is_last_spurt(h) as u8, h.ai.last_spurt_start_distance, h.ai.last_spurt_calc_result, h.phase, h.ai.block_horse.map(|k| h.ai.around_horses[k].info));
     }
 }

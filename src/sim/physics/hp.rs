@@ -67,7 +67,7 @@ pub fn calc_hp_dec_rate(race: &Race, i: usize) -> f32 {
         rate = if oonige { p.HpDecRateBaseCompeteTopOonige } else { p.HpDecRateBaseCompeteTopNige };
     } else if tempt {
         rate = p.HpDecRateBaseTemptation;
-    } else if position_keep::is_position_keep(race, i) && position_keep::position_keep_mode(race, i) == PositionKeepMode::PaceDown {
+    } else if position_keep::is_position_keep(&race.horses[i]) && position_keep::position_keep_mode(&race.horses[i]) == PositionKeepMode::PaceDown {
         rate = p.HpDecRateBasePositionKeepPaceDown;
     }
     if h.ai.is_down_slope_accel_mode {

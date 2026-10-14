@@ -27,7 +27,7 @@ pub fn record_spans(race: &mut Race) {
     for i in 0..n {
         let h = &race.horses[i];
         let on = !h.is_finished;
-        let pk = ai::position_keep::position_keep_mode(race, i);
+        let pk = ai::position_keep::position_keep_mode(h);
         let state = [
             on && h.is_compete_fight,
             on && h.is_compete_top,
@@ -63,8 +63,8 @@ pub fn record(race: &mut Race) {
                 lane_position: h.lane_distance,
                 speed: h.last_speed,
                 hp: h.hp,
-                temptation_mode: temptation::temptation_mode(race, i) as i8,
-                block_front_horse_index: ai::block_horse_front(race, i).map_or(-1, |j| j as i8),
+                temptation_mode: temptation::temptation_mode(h) as i8,
+                block_front_horse_index: ai::around::block_horse_front(h).map_or(-1, |j| j as i8),
             }
         })
         .collect();

@@ -1,9 +1,10 @@
 //! Lanes: the target-lane calculator and its strategies (Normal / Overtake / Fixed), force-in, and the lane move.
 
-use crate::sim::ai::{self, check_lane_space, is_enable_in_move, is_enable_out_move};
+use crate::sim::ai::{self, position_keep};
+use crate::sim::ai::around::{check_lane_space, is_enable_in_move, is_enable_out_move, AroundHorse};
+use crate::sim::ai::overtake::{is_overtake, is_overtake_or_cool_down};
 use crate::sim::defs::{Phase, PositionKeepMode, SkillModifierParam};
 use crate::sim::horse::Horse;
-use crate::sim::ai::position_keep;
 use crate::sim::race::Race;
 use crate::sim::util::{approximately, clamp, clamp01, max, min};
 
@@ -68,19 +69,21 @@ pub enum TargetLaneStrategy {
     Fixed,
 }
 
-/// The race calculator, or Null when there is no first move-lane point (`is_empty_in_move` false). No RNG.
-pub fn new_lane_planner(race: &mut Race, i: usize) -> LanePlanner {
-    let h = &race.horses[i];
-    if !h.is_empty_in_move {
-        return LanePlanner::Fixed(FixedLane::default());
+impl LanePlanner {
+    /// The race calculator, or Null when there is no first move-lane point (`is_empty_in_move` false). No RNG.
+    pub fn new(race: &mut Race, i: usize) -> LanePlanner {
+        let h = &race.horses[i];
+        if !h.is_empty_in_move {
+            return LanePlanner::Fixed(FixedLane::default());
+        }
+        LanePlanner::Race(RaceLanePlanner {
+            first_move_lane_point_distance: race.course.event_param.first_move_lane_point_distance,
+            last_move_out_start_distance: calc_last_move_out_start_distance(race),
+            overtake_lane_candidate: Vec::with_capacity(8),
+            target_lane: clamp_lane(h, h.lane_distance),
+            ..Default::default()
+        })
     }
-    LanePlanner::Race(RaceLanePlanner {
-        first_move_lane_point_distance: race.course.event_param.first_move_lane_point_distance,
-        last_move_out_start_distance: calc_last_move_out_start_distance(race),
-        overtake_lane_candidate: Vec::with_capacity(8),
-        target_lane: clamp_lane(h, h.lane_distance),
-        ..Default::default()
-    })
 }
 
 /// Where the last move outward starts: a fixed fraction into the first final corner, or -1 without one.
@@ -123,7 +126,7 @@ fn update_race_lane_planner(race: &mut Race, i: usize, calc: &mut RaceLanePlanne
     // Keep the current target while still moving toward it, unless a re-check is forced or the horse is overtaking.
     if calc.is_force_check_next_lane_one_time {
         calc.is_force_check_next_lane_one_time = false;
-    } else if !ai::is_overtake(&race.horses[i]) {
+    } else if !is_overtake(&race.horses[i]) {
         let h = &race.horses[i];
         let d = calc.target_lane - h.lane_distance;
         if !(0.027777778 > d && d > -0.027777778) {
@@ -142,7 +145,7 @@ fn update_race_lane_planner(race: &mut Race, i: usize, calc: &mut RaceLanePlanne
         calc.is_use_extra_move = true;
     }
     let h = &race.horses[i];
-    let overtake = ai::is_overtake_or_cool_down(h)
+    let overtake = is_overtake_or_cool_down(h)
         && (h.phase > Phase::MiddleRun
             || calc.first_move_lane_point_distance < h.distance
             || !(h.distance >= calc.first_move_lane_point_distance - 200.0));
@@ -201,7 +204,7 @@ fn search_normal(race: &Race, i: usize, calc: &RaceLanePlanner) -> f32 {
     if 0.0 >= h.hp {
         return lane;
     }
-    if position_keep::position_keep_mode(race, i) == PositionKeepMode::PaceDown {
+    if position_keep::position_keep_mode(&race.horses[i]) == PositionKeepMode::PaceDown {
         return p.PositionKeep.PositionKeepPaceDownTargetLane;
     }
     if calc.is_use_extra_move {
@@ -246,7 +249,7 @@ fn search_fixed(h: &Horse) -> f32 {
 /// Overtaking: pick the best free lane beside the targets (or straight ahead), weighted by phase and skills.
 fn search_overtake(race: &Race, i: usize, calc: &mut RaceLanePlanner) -> f32 {
     let h = &race.horses[i];
-    if !ai::is_overtake_or_cool_down(h) {
+    if !is_overtake_or_cool_down(h) {
         return h.lane_distance;
     }
     let cand = &mut calc.overtake_lane_candidate;
@@ -360,7 +363,7 @@ fn check_enable_move_lane(race: &Race, h: &Horse, c: f32) -> bool {
 }
 
 /// Any visible horse (live distance and lane) inside the box.
-fn check_horse_exist(race: &Race, around: &[ai::AroundHorse], vis: &[usize], d_min: f32, d_max: f32, l_min: f32, l_max: f32) -> bool {
+fn check_horse_exist(race: &Race, around: &[AroundHorse], vis: &[usize], d_min: f32, d_max: f32, l_min: f32, l_max: f32) -> bool {
     vis.iter().any(|&k| {
         let o = &race.horses[around[k].info];
         let (d, l) = (o.distance, o.lane_distance);
@@ -511,10 +514,11 @@ fn calc_lane_move_speed(race: &mut Race, i: usize, dt: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sim::ai::{snapshot_scan_view, test_race, update_around_horses_param};
+    use crate::sim::ai::around::{snapshot_scan_view, update_around_horses_param};
+    use crate::sim::test_util::ai_race;
 
     fn setup(pos: &[(f32, f32)], phase: Phase) -> Race<'static> {
-        let mut race = test_race(pos.len());
+        let mut race = ai_race(pos.len());
         for (i, &(d, l)) in pos.iter().enumerate() {
             race.horses[i].distance = d;
             race.horses[i].lane_distance = l;

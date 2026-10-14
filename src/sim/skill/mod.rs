@@ -160,7 +160,7 @@ fn setup_detail(race: &mut Race, i: usize, si: usize) {
         let cool_down = dd.float_cooldown_time as f32 * 0.0001;
         let dist_rate_time = value::calc_ability_time_by_distance_rate(course_distance, div_time);
         let ability_time = dist_rate_time * ability_time;
-        let tc = value::new_ability_time(dd.ability_time_usage, ability_time, dist_rate_time);
+        let tc = value::AbilityTime::new(dd.ability_time_usage, ability_time, dist_rate_time);
         race.horses[i].skill_manager.skills[si].details[d] = SkillDetail {
             detail_index: d as i32,
             time: tc,
@@ -200,12 +200,12 @@ fn create_ability(race: &mut Race, r: SkillDetailRef, level: i32, ab: &SkillAbil
     let t = ab.ability_type;
     let value = ab.float_ability_value as f32 * 0.0001;
     let is_demerit = t != 0 && is_skill_demerit(t, value);
-    let target = target::new_skill_target(r.horse, ab.target_type, ab.target_value, is_demerit);
+    let target = target::SkillTarget::new(r.horse, ab.target_type, ab.target_value, is_demerit);
     if t < 1 {
         return None;
     }
     match t {
-        1..=5 | 7..=14 | 21 | 22 | 27..=32 | 35..=38 => Some(Some(ability::new_skill_ability(race, r, level, ab, target))),
+        1..=5 | 7..=14 | 21 | 22 | 27..=32 | 35..=38 => Some(Some(ability::SkillAbility::new(race, r, level, ab, target))),
         _ => Some(None),
     }
 }

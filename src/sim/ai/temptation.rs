@@ -1,9 +1,21 @@
 //! Rushed ("temptation"): the lottery before the start, the rush itself and its end rolls.
 
-use crate::sim::defs::{RunningStyle, SkillModifierParam, TemptationMode};
-use crate::sim::horse;
+use crate::sim::defs::{RunningStyle, SkillModifierParam};
+use crate::sim::horse::{self, Horse};
 use crate::sim::race::Race;
 use crate::sim::physics::stats;
+
+/// Rushed (temptation) mode; recorded per frame as i8 (`HorseFrame::temptation_mode`).
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TemptationMode {
+    #[default]
+    Null = 0,
+    PositionSashi = 1,
+    PositionSenko = 2,
+    PositionNige = 3,
+    Boost = 4,
+}
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Temptation {
@@ -18,9 +30,11 @@ pub struct Temptation {
     pub is_temptation_start_enable: bool,
 }
 
-/// A fresh calculator (no rush drawn yet). No RNG.
-pub fn new_temptation() -> Temptation {
-    Temptation { temptation_start_section: -1, ..Default::default() }
+impl Temptation {
+    /// A fresh calculator (no rush drawn yet). No RNG.
+    pub fn new() -> Temptation {
+        Temptation { temptation_start_section: -1, ..Default::default() }
+    }
 }
 
 /// The pre-race rush lottery (run once before the start): whether the horse will rush, and in which section.
@@ -150,23 +164,28 @@ pub fn set_force_end_time_by_skill(calc: &mut Temptation, time: f32) {
     calc.is_force_end_time_by_skill_enable = true;
 }
 
-pub fn temptation_mode(race: &Race, i: usize) -> TemptationMode {
-    race.horses[i].ai.temptation.mode
+pub fn temptation_mode(h: &Horse) -> TemptationMode {
+    h.ai.temptation.mode
+}
+
+/// Currently rushed.
+pub fn is_temptation(h: &Horse) -> bool {
+    h.ai.temptation.is_temptation
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sim::ai::test_race;
+    use crate::sim::test_util::ai_race;
 
     #[test]
     fn lottery_draw_counts() {
         let (mut fails, mut wins) = (0, 0);
         for seed in 0..200 {
-            let mut race = test_race(1);
+            let mut race = ai_race(1);
             race.rng = crate::rng::RaceRandom::new(seed);
             race.horses[0].base_wiz_adjusted = 600.0;
-            race.horses[0].ai.temptation = new_temptation();
+            race.horses[0].ai.temptation = Temptation::new();
             lot_temptation(&mut race, 0);
             let c = race.horses[0].ai.temptation;
             let draws = race.rng.draws();
@@ -185,7 +204,7 @@ mod tests {
 
     #[test]
     fn mode_and_end_draws() {
-        let mut race = test_race(1);
+        let mut race = ai_race(1);
         race.info.course_section_distance = 100.0;
         for (style, draws, mode) in [
             (RunningStyle::Nige, 0, TemptationMode::Boost),
