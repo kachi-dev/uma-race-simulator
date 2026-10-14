@@ -148,6 +148,16 @@ pub fn create_skill(race: &mut Race, i: usize) {
     race.horses[i].is_skill_initialized = true;
 }
 
+/// Whether skill `id` can never activate for horse `owner` in this race: every detail with conditions has a
+/// precondition or condition that is [`trigger::never_true`]. Unknown skills and ones without conditions count as
+/// possible. May draw RNG (see there).
+pub fn never_activates(race: &mut Race, owner: usize, id: i32) -> bool {
+    let data = race.data;
+    let Some(s) = data.skills.get(&id) else { return false };
+    let mut used = s.details.iter().filter(|d| !d.precondition.is_empty() || !d.condition.is_empty()).peekable();
+    used.peek().is_some() && used.all(|d| trigger::never_true(race, owner, &d.precondition) || trigger::never_true(race, owner, &d.condition))
+}
+
 fn setup_detail(race: &mut Race, i: usize, si: usize) {
     let course_distance = race.info.race_course_set.distance;
     let (div_time, div_cd) = (race.data.param.Skill.AbilityTimeDivideDistance, race.data.param.Skill.CoolDownTimeDivideDistance);

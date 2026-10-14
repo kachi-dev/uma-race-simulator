@@ -173,6 +173,25 @@ pub fn create_trigger_collection(race: &mut Race, r: SkillDetailRef, text: &str)
     SkillTriggerCollection::Collection { start: start as u32, len: triggers.len() as u32, any_empty_group, has_lot_other, wake: Wake::NOW }
 }
 
+/// Whether condition `text` is false all race for horse `owner` on facts fixed from the start (course, ground,
+/// weather, season, time, race, her running style and mood): each OR-group has such a term that is false. Terms on
+/// anything else (position, HP, RNG, the field, stats that skills can buff) count as possibly true. Builds throwaway
+/// triggers, which may draw RNG: use a race that won't be run.
+pub fn never_true(race: &mut Race, owner: usize, text: &str) -> bool {
+    use SkillTriggerKind as K;
+    let r = SkillDetailRef { horse: owner, skill: 0, detail: 0 };
+    let fixed_false = |race: &mut Race, term: &str| {
+        let Some(t) = parse_term(term).and_then(|(kw, op, v)| create_trigger(race, r, kw, op, v)) else { return false };
+        matches!(
+            t.kind,
+            K::CourseCornerCount | K::Grade | K::RaceId | K::Time | K::CourseDistance | K::IsDirtGrade | K::GroundType
+                | K::GroundCondition | K::CourseRotation | K::CourseDistanceType | K::Weather | K::Season | K::RaceTrackId
+                | K::RunningStyle | K::Motivation
+        ) && !check_value(value_lh(race, owner, &t.kind), t.op, t.value_rh)
+    };
+    !text.is_empty() && text.split('@').all(|g| !g.is_empty() && g.split('&').any(|term| fixed_false(race, term)))
+}
+
 fn check_value(lh: i32, op: SkillTriggerOperator, rh: i32) -> bool {
     use SkillTriggerOperator::*;
     match op {
@@ -644,6 +663,20 @@ mod tests {
     use crate::sim::skill::trigger::kind::order_type;
     use crate::data::{DataEra, GameData};
     use std::path::Path;
+
+    #[test]
+    fn never_true_fixed_terms() {
+        use crate::sim::defs::RunningStyle;
+        let mut race = crate::sim::test_util::ai_race(2);
+        race.info.horse_index_by_popularity = vec![0, 1];
+        race.horses[0].horse_data.running_style = RunningStyle::Sashi; // 3
+        assert!(never_true(&mut race, 0, "running_style==1&phase>=2"));
+        assert!(never_true(&mut race, 0, "running_style==1@running_style==4"));
+        assert!(!never_true(&mut race, 0, "running_style==3&phase>=2"));
+        assert!(!never_true(&mut race, 0, "running_style==1@phase>=2")); // the other group may come true
+        assert!(!never_true(&mut race, 0, "running_style==1@")); // an empty group is true
+        assert!(!never_true(&mut race, 0, ""));
+    }
 
     #[test]
     fn parse_terms() {
