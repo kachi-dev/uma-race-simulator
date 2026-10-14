@@ -17,34 +17,47 @@ use crate::sim::horse;
 use crate::sim::physics::{conserve_power, hp, last_spurt, slope, speed};
 use crate::sim::skill::{self, trigger};
 
+/// The whole race: [`start`], [`step`] until it returns true, [`finish`].
 pub fn run(race: &mut Race) {
+    start(race);
+    while !step(race) {}
+    finish(race);
+}
+
+/// Everything before the first DT step: field setup, the zero-DT first frame and the first record.
+pub fn start(race: &mut Race) {
     race.is_simulate_end = false;
     race.recorder = Recorder::default();
-    let mut record_timer = race::record_interval(race);
+    race.record_timer = race::record_interval(race);
     field::init_before_start(race);
     if !first_frame(race) {
         race::update_distance_diff_max(race);
     }
     record::record(race);
-    loop {
-        race.accumulate_time_since_start += DT;
-        race.recorder.cur_time += DT;
-        let is_end = frame(race, DT);
-        if !is_end {
-            race::update_distance_diff_max(race);
-        }
-        course::event_manager_update(race);
-        record::record_spans(race);
-        record_timer += -DT;
-        // `f32::from_bits(1)` is float.Epsilon.
-        if !(f32::from_bits(1) < record_timer) || is_end {
-            record::record(race);
-            record_timer = race::record_interval(race);
-        }
-        if is_end {
-            break;
-        }
+}
+
+/// One DT step of the race loop; returns whether every horse has finished (then call [`finish`]). A `Race` cloned
+/// between steps continues exactly as the original would.
+pub fn step(race: &mut Race) -> bool {
+    race.accumulate_time_since_start += DT;
+    race.recorder.cur_time += DT;
+    let is_end = frame(race, DT);
+    if !is_end {
+        race::update_distance_diff_max(race);
     }
+    course::event_manager_update(race);
+    record::record_spans(race);
+    race.record_timer += -DT;
+    // `f32::from_bits(1)` is float.Epsilon.
+    if !(f32::from_bits(1) < race.record_timer) || is_end {
+        record::record(race);
+        race.record_timer = race::record_interval(race);
+    }
+    is_end
+}
+
+/// After the last [`step`]: the race results.
+pub fn finish(race: &mut Race) {
     record::record_race_result(race);
     race.is_simulate_end = true;
 }

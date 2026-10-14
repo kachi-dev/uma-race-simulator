@@ -38,6 +38,7 @@ fn bare_race<'a>(data: &'a GameData, input: &'a RaceInput, seed: i32, horses: Ve
         distance_diff_max: 0.0,
         is_simulate_end: false,
         recorder: Default::default(),
+        record_timer: 0.0,
         next_modifier_id: 0,
     }
 }

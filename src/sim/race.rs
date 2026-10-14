@@ -112,7 +112,9 @@ impl RaceInfo {
 }
 
 /// Borrowing idiom: `let data = race.data;` (a `&GameData` copy) before mutating `race`; read other horses
-/// by copying values out of `race.horses[j]` first, then write `race.horses[i]`.
+/// by copying values out of `race.horses[j]` first, then write `race.horses[i]`. A clone between `tick::step`s is an
+/// independent race that continues bit for bit like the original (forking).
+#[derive(Clone)]
 pub struct Race<'a> {
     pub data: &'a GameData,
     pub input: &'a RaceInput,
@@ -133,6 +135,8 @@ pub struct Race<'a> {
     pub distance_diff_max: f32,
     pub is_simulate_end: bool,
     pub recorder: Recorder,
+    /// Time left until the next frame record (`tick::step`).
+    pub record_timer: f32,
     /// Source of `SkillParamModifier::id`, which stands in for object identity.
     pub next_modifier_id: u64,
 }
@@ -168,6 +172,7 @@ pub fn init<'a>(input: &'a RaceInput, data: &'a GameData) -> Race<'a> {
         distance_diff_max: 0.0,
         is_simulate_end: false,
         recorder: Recorder::default(),
+        record_timer: 0.0,
         next_modifier_id: 0,
     };
     let params = course::load_course_params(data, &race.info);
