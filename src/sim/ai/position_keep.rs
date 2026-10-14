@@ -86,7 +86,7 @@ pub struct PositionKeep {
 }
 
 impl PositionKeep {
-    /// Builds horse `i`'s calculator: the check window and every mode's duration and multiplier. No RNG.
+    /// Builds horse `i`'s calculator: the check window and every mode's duration and multiplier. No RNG calls.
     pub fn new(race: &mut Race, i: usize) -> PositionKeep {
         let data = race.data;
         let kp = &data.param.PositionKeep;

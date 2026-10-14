@@ -58,7 +58,7 @@ fn members<'r>(race: &'r Race, team_id: i32) -> &'r [usize] {
 }
 
 impl AbilityValue {
-    /// No RNG (random usages draw per read). Unknown usages fall back to direct.
+    /// No RNG calls (random usages draw per read). Unknown usages fall back to direct.
     pub fn new(race: &mut Race, owner: usize, usage: i32, ability_value_base: f32, level: i32, ability_type: i32, level_usage: i32) -> AbilityValue {
         let p = &race.data.param.Skill;
         let mut c = AbilityValue { usage, ability_value_base, level, ability_type, level_usage, ..Default::default() };
@@ -226,7 +226,7 @@ pub fn apply_level_to_value(data: &GameData, level: i32, ability_type: i32, valu
 }
 
 impl AbilityTime {
-    /// No RNG.
+    /// No RNG calls.
     pub fn new(usage: i32, ability_time_base: f32, ability_time_by_distance_rate: f32) -> AbilityTime {
         AbilityTime { usage, ability_time_base, ability_time_by_distance_rate, increment_count: 0, additional_ability_time: 0.0 }
     }

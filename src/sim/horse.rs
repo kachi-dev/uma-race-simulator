@@ -207,7 +207,7 @@ pub struct Horse {
     pub finish_time_diff_from_prev_horse: f32,
 }
 
-/// No RNG.
+/// No RNG calls.
 pub fn construct(race: &mut Race, data: HorseData) {
     let i = race.horses.len();
     let p = &race.data.param;

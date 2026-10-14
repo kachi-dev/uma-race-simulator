@@ -70,7 +70,7 @@ pub enum TargetLaneStrategy {
 }
 
 impl LanePlanner {
-    /// The race calculator, or Null when there is no first move-lane point (`is_empty_in_move` false). No RNG.
+    /// The race calculator, or Null when there is no first move-lane point (`is_empty_in_move` false). No RNG calls.
     pub fn new(race: &mut Race, i: usize) -> LanePlanner {
         let h = &race.horses[i];
         if !h.is_empty_in_move {
@@ -178,7 +178,7 @@ fn is_target_lane_fixed(h: &Horse) -> bool {
     !approximately(h.skill_modifier_receiver.apply_modifier(SkillModifierParam::TargetLane, 0.0), 0.0)
 }
 
-/// The next target lane under `strategy`. `calc` is horse `i`'s race calculator, taken out while it updates. No RNG.
+/// The next target lane under `strategy`. `calc` is horse `i`'s race calculator, taken out while it updates. No RNG calls.
 pub fn search(race: &Race, i: usize, calc: &mut RaceLanePlanner, strategy: TargetLaneStrategy) -> f32 {
     match strategy {
         TargetLaneStrategy::Normal => search_normal(race, i, calc),

@@ -67,7 +67,7 @@ pub struct RaceParameter {
 }
 
 impl RaceParameter {
-    /// Builds the stats with the >1200 halving. No RNG.
+    /// Builds the stats with the >1200 halving. No RNG calls.
     /// The raw fields keep the un-halved values.
     /// The team-rank bonus is added after halving.
     pub fn from_input(master: &Master, input: &HorseInput, halving: StatHalving) -> RaceParameter {

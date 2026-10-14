@@ -98,7 +98,7 @@ impl LastSpurt {
         None
     }
 
-    /// Lowers the speed from `v` until some spurt distance fits (at most 100 steps). No RNG.
+    /// Lowers the speed from `v` until some spurt distance fits (at most 100 steps). No RNG calls.
     /// Returns (result, distance, speed).
     fn speed_down(&self, race: &Race, mut v: f32, start_max: f32) -> (i32, f32, f32) {
         let p = &self.calc_param;

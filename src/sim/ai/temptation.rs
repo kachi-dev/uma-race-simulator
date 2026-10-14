@@ -31,7 +31,7 @@ pub struct Temptation {
 }
 
 impl Temptation {
-    /// A fresh calculator (no rush drawn yet). No RNG.
+    /// A fresh calculator (no rush drawn yet). No RNG calls.
     pub fn new() -> Temptation {
         Temptation { temptation_start_section: -1, ..Default::default() }
     }

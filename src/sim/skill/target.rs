@@ -22,7 +22,7 @@ pub struct SkillTarget {
 }
 
 impl SkillTarget {
-    /// No RNG.
+    /// No RNG calls.
     pub fn new(owner: usize, target_type: i32, target_value: i32, is_debuff: bool) -> SkillTarget {
         SkillTarget { target_type, owner, value_rh: target_value, targets: Vec::new(), is_debuff }
     }

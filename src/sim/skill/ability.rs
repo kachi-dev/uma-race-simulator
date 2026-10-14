@@ -46,7 +46,7 @@ fn additional_activate_max_count(race: &Race, t: i32) -> i32 {
 }
 
 impl SkillAbility {
-    /// No RNG: random values draw per activation.
+    /// No RNG calls: random values draw per activation.
     pub fn new(race: &mut Race, r: SkillDetailRef, level: i32, m: &SkillAbilityData, target: SkillTarget) -> SkillAbility {
         let value = m.float_ability_value as f32 * 0.0001;
         let v = value::apply_level_to_value(race.data, level, m.ability_type, value, m.ability_value_level_usage);
