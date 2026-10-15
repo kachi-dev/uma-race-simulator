@@ -46,7 +46,7 @@ To use game data from somewhere other than `data/`, set its path at build time i
 UMA_DATA_DIR = "/path/to/data"
 ```
 
-After a game update, regenerate `data/master_sim.db` from your install's `master.mdb`:
+After a game update, regenerate `data/master_sim.db` (and `data/names.json`, the display text Ulala syncs: umas, skills, races, Champions Meetings) from your install's `master.mdb`:
 
 ```sh
 cargo run --release --bin extract_master -- <path to master.mdb>

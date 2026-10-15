@@ -232,7 +232,7 @@ mod tests {
         assert_eq!(g.param.startDelayMax, 0.1f32);
         assert_eq!(g.master.race_motivation_rate[&5], 10400);
         assert_eq!(g.master.race_course_set[&11103].distance, 2000);
-        assert_eq!(g.master.skill_data.len(), 732);
+        assert_eq!(g.master.skill_data.len(), 734);
         assert_eq!(g.course_event_params.get("10101").unwrap().courseParams[1]._values, vec![4, 259]);
         let cs = &g.master.race_course_set[&11103];
         let name = course::lane_path_name(cs.race_track_id, cs.distance, cs.ground, cs.inout, 0);
