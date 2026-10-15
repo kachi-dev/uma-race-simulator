@@ -52,6 +52,8 @@ After a game update, regenerate `data/master_sim.db` (and `data/names.json`, the
 cargo run --release --bin extract_master -- <path to master.mdb>
 ```
 
+Champions Meetings announced ahead of the Global client go in `data/cm_upcoming.json` by hand, rows like names.json's `cm`: `[number, name, null, course_set, race_instance, ground, weather, season, time]`. The date stays null until the game has it; race_instance borrows an earlier CM's on the same course (a G1, for grade conditions) while the real one isn't in `master.mdb`. Ulala ignores a row once names.json has that number, so it can be deleted any time after.
+
 Differences between the community race mechanics doc and what the game actually does: [docs/race_mech_diffs.md](docs/race_mech_diffs.md).
 
 ## License
