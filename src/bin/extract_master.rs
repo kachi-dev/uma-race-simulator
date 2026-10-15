@@ -36,6 +36,9 @@ struct Names {
     race: BTreeMap<i64, String>,
     /// By skill id: [name, desc, rarity, icon_id, disp_order].
     skill: BTreeMap<i64, Value>,
+    /// By skill id: SP to learn it with no hints, its group's lower tiers included (a gold also pays for the white it
+    /// replaces, ◎ for ○). Skills that can't be bought (uniques) are absent.
+    skill_sp: BTreeMap<i64, i64>,
     /// By race_track_id.
     track: BTreeMap<i64, String>,
 }
@@ -64,6 +67,16 @@ fn write_names(src: &Path, dst: &Path) -> Result<(), String> {
             (i, json!([n, desc.get(&i).map_or("", |d| d.as_str()), rarity, icon, order]))
         })
         .collect();
+
+    let mut st = c
+        .prepare(
+            "SELECT s.id, n.need_skill_point + COALESCE((SELECT SUM(n2.need_skill_point) FROM skill_data s2
+                JOIN single_mode_skill_need_point n2 ON n2.id = s2.id
+                WHERE s2.group_id = s.group_id AND s2.group_rate > 0 AND s2.group_rate < s.group_rate), 0)
+            FROM skill_data s JOIN single_mode_skill_need_point n ON n.id = s.id",
+        )
+        .map_err(e)?;
+    let skill_sp = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?))).map_err(e)?.collect::<Result<_, _>>().map_err(e)?;
 
     let apt = APT.map(|a| format!("proper_{a}")).join(", ");
     let mut top = c.prepare(&format!("SELECT skill_set, {apt} FROM card_rarity_data WHERE card_id = ?1 ORDER BY rarity DESC LIMIT 1")).map_err(e)?;
@@ -105,6 +118,6 @@ fn write_names(src: &Path, dst: &Path) -> Result<(), String> {
         .collect::<Result<_, _>>()
         .map_err(e)?;
 
-    let names = Names { card, chara, cm, race: text(28)?, skill, track: text(35)? };
+    let names = Names { card, chara, cm, race: text(28)?, skill, skill_sp, track: text(35)? };
     std::fs::write(dst, serde_json::to_string(&names).map_err(|e| e.to_string())?).map_err(|e| format!("{}: {e}", dst.display()))
 }
