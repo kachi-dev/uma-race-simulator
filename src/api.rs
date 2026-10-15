@@ -74,6 +74,8 @@ pub struct HorseInput {
     /// halving, motivation, style aptitude and skill modifiers. With `wiz` at one value and this at another, a pair of
     /// races differs in one mechanic's Wit only. None = normal behaviour.
     pub wiz_alt: Option<WizAlt>,
+    /// Not game data (analysis hook): bits of [`mechanic`] that run inert for this horse. 0 = normal behaviour.
+    pub muted_mechanics: u8,
 }
 
 /// See [`HorseInput::wiz_alt`].
@@ -103,6 +105,13 @@ pub mod wiz_mechanic {
     pub const COURSE_BONUS: u8 = 1 << 6;
     pub const COUNT: usize = 7;
     pub const ALL: u8 = (1 << COUNT) - 1;
+}
+
+/// Mechanics [`HorseInput::muted_mechanics`] can switch off.
+pub mod mechanic {
+    /// Conserve power: nothing stored, nothing released (it draws no RNG, so a muted pair matches up to the release).
+    pub const CONSERVE_POWER: u8 = 1 << 0;
+    pub const COUNT: usize = 1;
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

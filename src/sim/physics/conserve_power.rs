@@ -41,14 +41,15 @@ pub fn on_compete_top_start(race: &mut Race, i: usize) {
 
 impl ConservePower {
     /// Creates the calculator after the gate skills. `PowerStat = base Power + 0.5 * max(raw Power - 1200, 0) + skill
-    /// Power`; only horses above 1200 conserve power.
+    /// Power`; only horses above 1200 conserve power (and not with it in `HorseInput::muted_mechanics`).
     pub fn new(race: &Race, i: usize) -> ConservePower {
         let h = &race.horses[i];
         let rp = h.horse_data.race_param;
         let skill_add = h.skill_modifier_receiver.apply_modifier(SkillModifierParam::Power, 0.0);
         let power_stat = rp.base_pow + 0.5 * (rp.raw_pow - 1200).max(0) as f32 + skill_add;
         // From the July 2026 update on.
-        let is_active = power_stat > 1200.0 && !race.data.era.pre_2026_07_courses;
+        let muted = race.input.horses[i].muted_mechanics & crate::api::mechanic::CONSERVE_POWER != 0;
+        let is_active = power_stat > 1200.0 && !race.data.era.pre_2026_07_courses && !muted;
         ConservePower { is_active, power_stat, activity_coef: 1.0, ..Default::default() }
     }
 }

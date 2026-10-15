@@ -161,6 +161,7 @@ fn horse(h: SaveHorse) -> HorseInput {
         fan_count: r.fan_count,
         muted_skills: Vec::new(),
         wiz_alt: None,
+        muted_mechanics: 0,
     }
 }
 
