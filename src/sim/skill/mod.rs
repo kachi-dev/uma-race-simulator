@@ -470,6 +470,8 @@ pub fn detail_activate(race: &mut Race, r: SkillDetailRef) {
     if specific {
         h.activate_specific_tag_group_skill_count += 1;
     }
+    let infinite = detail(race, r).is_time_infinite;
+    record::open_skill_span(race, r, id, infinite);
 }
 
 /// At the gate (time <= 0) the target flags are 0 and the continue time is -1.
@@ -530,6 +532,7 @@ pub fn detail_stop(race: &mut Race, r: SkillDetailRef) {
     if !detail(race, r).is_activated {
         return;
     }
+    record::close_skill_span(race, r);
     detail_mut(race, r).is_activated = false;
     for k in 0..detail(race, r).abilities.len() {
         if detail(race, r).abilities[k].is_some() {

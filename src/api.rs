@@ -121,13 +121,14 @@ pub struct SkillInput {
 }
 
 /// Simulation output: frames, results and events, un-quantized. `replay::quantize` rounds it to recorded precision.
-/// `spans` are sim-only (not in replays).
+/// `spans` and `skill_spans` are sim-only (not in replays).
 #[derive(Clone, Debug, Default)]
 pub struct SimOutput {
     pub frames: Vec<Frame>,
     pub results: Vec<HorseResult>,
     pub events: Vec<Event>,
     pub spans: Vec<Span>,
+    pub skill_spans: Vec<SkillSpan>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -181,6 +182,23 @@ pub struct Span {
     pub kind: u8,
     pub start: f32,
     pub end: f32,
+}
+
+/// One skill effect of one horse, from its activation to when the effect ended: its duration as the race ran it
+/// (scaled by distance, extended while its extension conditions held, or stopped early). One per activation of a
+/// skill detail; skills that activate without an effect have none. Sim-only.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct SkillSpan {
+    /// Gate index, as in skill events.
+    pub horse: usize,
+    pub skill_id: i32,
+    /// Skill detail (0 or 1), as in skill events.
+    pub detail: i32,
+    pub start: f32,
+    /// None = still running when the race ended: `infinite`, or past the horse's finish.
+    pub end: Option<f32>,
+    /// No time limit (passive skills): it lasts the whole race.
+    pub infinite: bool,
 }
 
 pub mod span_kind {

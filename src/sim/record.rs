@@ -3,7 +3,8 @@
 use crate::sim::defs::PositionKeepMode;
 use crate::sim::race::Race;
 use crate::sim::ai::{self, temptation};
-use crate::api::{event_kind, span_kind, Event, Frame, HorseFrame, HorseResult, SimOutput, Span};
+use crate::api::{event_kind, span_kind, Event, Frame, HorseFrame, HorseResult, SimOutput, SkillSpan, Span};
+use crate::sim::skill::SkillDetailRef;
 
 /// Recorded race data, un-quantized.
 #[derive(Clone, Debug, Default)]
@@ -17,6 +18,29 @@ pub struct Recorder {
     pub spans: Vec<Span>,
     /// Per horse and `span_kind`: start time of the open span.
     pub open_spans: Vec<[Option<f32>; span_kind::COUNT]>,
+    pub skill_spans: Vec<SkillSpan>,
+    /// Skill details whose effect is running: index into `skill_spans`.
+    pub open_skills: Vec<(SkillDetailRef, usize)>,
+}
+
+/// Opens a `skill_spans` entry for skill detail `r`, activated now (one still open for it is closed first).
+pub fn open_skill_span(race: &mut Race, r: SkillDetailRef, skill_id: i32, infinite: bool) {
+    close_skill_span(race, r);
+    let t = race.accumulate_time_since_start;
+    let horse = race.horses[r.horse].horse_data.horse_index as usize;
+    let rec = &mut race.recorder;
+    rec.open_skills.push((r, rec.skill_spans.len()));
+    rec.skill_spans.push(SkillSpan { horse, skill_id, detail: r.detail as i32, start: t, end: None, infinite });
+}
+
+/// Ends the open `skill_spans` entry of skill detail `r` now (its effect stopped); nothing when none is open.
+pub fn close_skill_span(race: &mut Race, r: SkillDetailRef) {
+    let t = race.accumulate_time_since_start;
+    let rec = &mut race.recorder;
+    if let Some(k) = rec.open_skills.iter().position(|o| o.0 == r) {
+        let (_, i) = rec.open_skills.swap_remove(k);
+        rec.skill_spans[i].end = Some(t);
+    }
 }
 
 /// Opens / closes `spans` from each horse's state after a step. Read-only on the race.
@@ -108,5 +132,11 @@ pub fn add_horse_event(race: &mut Race, kind: u8, horse_index: usize, cur_time: 
 }
 
 pub fn into_output(race: Race) -> SimOutput {
-    SimOutput { frames: race.recorder.frames, results: race.recorder.results, events: race.recorder.events, spans: race.recorder.spans }
+    SimOutput {
+        frames: race.recorder.frames,
+        results: race.recorder.results,
+        events: race.recorder.events,
+        spans: race.recorder.spans,
+        skill_spans: race.recorder.skill_spans,
+    }
 }
