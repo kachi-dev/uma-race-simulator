@@ -1,6 +1,6 @@
 //! Race recording: frames, events and results → `api::SimOutput`.
 
-use crate::sim::defs::PositionKeepMode;
+use crate::sim::defs::{PositionKeepMode, SkillModifierParam};
 use crate::sim::race::Race;
 use crate::sim::ai::{self, temptation};
 use crate::api::{event_kind, span_kind, Event, Frame, HorseFrame, HorseResult, SimOutput, SkillSpan, Span};
@@ -82,6 +82,7 @@ pub fn record(race: &mut Race) {
     let horses = (0..race.horses.len())
         .map(|i| {
             let h = &race.horses[i];
+            let m = &h.skill_modifier_receiver;
             HorseFrame {
                 distance: h.distance,
                 lane_position: h.lane_distance,
@@ -89,6 +90,8 @@ pub fn record(race: &mut Race) {
                 hp: h.hp,
                 temptation_mode: temptation::temptation_mode(h) as i8,
                 block_front_horse_index: ai::around::block_horse_front(h).map_or(-1, |j| j as i8),
+                skill_speed: m.apply_modifier(SkillModifierParam::TargetSpeed, 0.0) + m.apply_modifier(SkillModifierParam::CurrentSpeed, 0.0),
+                skill_accel: m.apply_modifier(SkillModifierParam::Accel, 0.0),
             }
         })
         .collect();

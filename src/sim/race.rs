@@ -137,6 +137,9 @@ pub struct Race<'a> {
     pub recorder: Recorder,
     /// Time left until the next frame record (`tick::step`).
     pub record_timer: f32,
+    /// Not game behaviour (analysis hook): record a frame every step instead of the replay cadence
+    /// (`record_interval`). Set it between `init` and `tick::start`; only the recorded frames change.
+    pub record_every_step: bool,
     /// Source of `SkillParamModifier::id`, which stands in for object identity.
     pub next_modifier_id: u64,
 }
@@ -173,6 +176,7 @@ pub fn init<'a>(input: &'a RaceInput, data: &'a GameData) -> Race<'a> {
         is_simulate_end: false,
         recorder: Recorder::default(),
         record_timer: 0.0,
+        record_every_step: false,
         next_modifier_id: 0,
     };
     let params = course::load_course_params(data, &race.info);
@@ -230,8 +234,11 @@ pub fn update_distance_diff_max(race: &mut Race) {
 }
 
 /// Seconds until the next recorded frame: every frame during the first second and while a player's horse
-/// is within 25 m of the goal, otherwise once a second.
+/// is within 25 m of the goal, otherwise once a second. Every frame with `Race::record_every_step`.
 pub fn record_interval(race: &Race) -> f32 {
+    if race.record_every_step {
+        return 0.0;
+    }
     let is_start_near = race.accumulate_time_since_start < 1.0;
     let goal = race.info.race_course_set.distance as f32;
     let is_goal_near = race.horses.iter().any(|h| h.horse_data.viewer_id != 0 && (goal - h.distance).abs() <= 25.0);

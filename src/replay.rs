@@ -336,7 +336,7 @@ mod tests {
 
     #[test]
     fn quantize_truncates() {
-        let h = HorseFrame { distance: 1.5, lane_position: 0.123456, speed: 19.999, hp: 1234.9, temptation_mode: 0, block_front_horse_index: -1 };
+        let h = HorseFrame { distance: 1.5, lane_position: 0.123456, speed: 19.999, hp: 1234.9, temptation_mode: 0, block_front_horse_index: -1, ..Default::default() };
         let q = quantize_frame(&h);
         assert_eq!((q.lane_position, q.speed, q.hp), (1234, 1999, 1234));
         assert_eq!(cvtt(f32::NAN), i32::MIN);

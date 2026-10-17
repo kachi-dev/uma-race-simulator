@@ -145,6 +145,11 @@ pub struct HorseFrame {
     pub hp: f32,
     pub temptation_mode: i8,
     pub block_front_horse_index: i8,
+    /// Sim-only (not in replays, `replay::quantize_frame` leaves them out): the skill effects on the horse now, summed
+    /// over every active modifier, its own skills' and others' debuffs alike. Target speed + current speed (m/s).
+    pub skill_speed: f32,
+    /// Acceleration (m/s²).
+    pub skill_accel: f32,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

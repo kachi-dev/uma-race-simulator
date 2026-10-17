@@ -39,6 +39,7 @@ fn bare_race<'a>(data: &'a GameData, input: &'a RaceInput, seed: i32, horses: Ve
         is_simulate_end: false,
         recorder: Default::default(),
         record_timer: 0.0,
+        record_every_step: false,
         next_modifier_id: 0,
     }
 }
