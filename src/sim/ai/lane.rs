@@ -103,6 +103,7 @@ fn clamp_lane(h: &Horse, v: f32) -> f32 {
 
 /// Updates the current lane calculator and takes its target lane.
 pub fn update_move_lane(race: &mut Race, i: usize) {
+    if !race.input.analysis_options.lane_movement { return; }
     let ai = &race.horses[i].ai;
     if ai.active_lane_planner == ActiveLanePlanner::Race && matches!(ai.lane_planner, LanePlanner::Race(_)) {
         update_lane_planner(race, i);
@@ -401,7 +402,7 @@ fn crowd_edge_horse(race: &Race, start: usize, g: f32, is_in: bool) -> usize {
 pub fn update_force_in_move(race: &mut Race, i: usize) {
     let threshold = race.data.param.forceInMoveLaneThreshold;
     let h = &race.horses[i];
-    let v = h.is_empty_in_move && h.phase < Phase::MiddleRun && !(threshold > h.lane_distance) && !is_enable_in_move(h);
+    let v = race.input.analysis_options.lane_movement && h.is_empty_in_move && h.phase < Phase::MiddleRun && !(threshold > h.lane_distance) && !is_enable_in_move(h);
     race.horses[i].ai.is_force_in_move_enable = v;
 }
 
@@ -418,6 +419,14 @@ pub fn set_force_check_next_lane_one_time(race: &mut Race, i: usize, value: bool
 }
 
 pub fn move_lane(race: &mut Race, i: usize, dt: f32) {
+    if !race.input.analysis_options.lane_movement {
+        let h = &mut race.horses[i];
+        h.prev_lane_distance = h.lane_distance;
+        h.lane_move_speed = 0.0;
+        h.last_lane_move_speed = 0.0;
+        h.move_lane_continue_time = 0.0;
+        return;
+    }
     let h = &mut race.horses[i];
     h.prev_lane_distance = h.lane_distance;
     let prev = h.prev_lane_distance;

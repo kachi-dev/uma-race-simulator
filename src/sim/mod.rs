@@ -51,3 +51,6 @@ pub fn simulate(input: &RaceInput, data: &GameData) -> SimOutput {
     tick::run(&mut race);
     record::into_output(race)
 }
+
+#[cfg(test)]
+mod analysis_tests;

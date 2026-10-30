@@ -1,7 +1,33 @@
 //! Public input/output types.
 
+/// Race-wide switches for analysis. Defaults preserve ordinary simulation behavior.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AnalysisOptions {
+    pub skill_wiz_check: SkillWizCheck,
+    pub rushed: bool,
+    pub spot_struggle: bool,
+    pub dueling: bool,
+    /// When false, disable voluntary lane planning, movement and force-in boost; keep overlap separation.
+    pub lane_movement: bool,
+}
+
+impl Default for AnalysisOptions {
+    fn default() -> Self {
+        Self { skill_wiz_check: SkillWizCheck::Normal, rushed: true, spot_struggle: true, dueling: true, lane_movement: true }
+    }
+}
+
+/// Only the two skill Wit lotteries are overridden; other conditions and random draws remain normal.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SkillWizCheck {
+    #[default]
+    Normal,
+    AlwaysPass,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct RaceInput {
+    pub analysis_options: AnalysisOptions,
     pub random_seed: i32,
     /// `race_course_set.id` (master.mdb).
     pub course_set_id: i32,

@@ -49,7 +49,7 @@ pub fn lot_temptation(race: &mut Race, i: usize) {
     let per = h.skill_modifier_receiver.apply_modifier(SkillModifierParam::TemptationPer, per);
     let r = race.rng.random_int(100);
     if per > r as f32 {
-        race.horses[i].ai.temptation.is_temptation_start_enable = true;
+        race.horses[i].ai.temptation.is_temptation_start_enable = race.input.analysis_options.rushed;
         let s = race.rng.random_int_range(tp.TemptationLotSectionMin, tp.TemptationLotSectionMax + 1);
         race.horses[i].ai.temptation.temptation_start_section = s;
     }
@@ -70,6 +70,7 @@ pub fn update(race: &mut Race, i: usize, dt: f32) {
     let tp = &data.param.Temptation;
     let calc = &race.horses[i].ai.temptation;
     if !calc.is_temptation {
+        if !race.input.analysis_options.rushed { return; }
         if !calc.is_temptation_start_enable {
             return;
         }

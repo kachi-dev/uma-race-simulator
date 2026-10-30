@@ -14,7 +14,7 @@ pub struct CompeteTop {
 pub fn update(race: &mut Race, dt: f32) {
     let p = &race.data.param.CompeteTop;
     let n = race.horses.len();
-    if race.horses.iter().any(|h| h.distance >= p.CheckStartDistance) {
+    if race.input.analysis_options.spot_struggle && race.horses.iter().any(|h| h.distance >= p.CheckStartDistance) {
         start_groups(race);
     }
     // A horse leaves early when no other horse of its group is within DistanceGap2 / LaneGap2. Membership counts,

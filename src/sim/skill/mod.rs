@@ -231,7 +231,7 @@ pub fn lot_activate_skill(race: &mut Race, i: usize) {
             let thr = (v1 as f64 - v2 as f64 / wiz as f64) as f32;
             let thr = if min > thr { min } else { thr };
             let r = race.rng.random_float(100.0);
-            r < thr
+            r < thr || race.input.analysis_options.skill_wiz_check == crate::api::SkillWizCheck::AlwaysPass
         } else {
             true
         };
