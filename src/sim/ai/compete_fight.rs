@@ -28,7 +28,7 @@ pub fn update(race: &mut Race) {
     let hp_ok = |h: &crate::sim::horse::Horse, per: i32| h.hp >= h.max_hp * per as f32 * 0.01;
     for i in 0..n {
         let h = &race.horses[i];
-        if h.is_compete_fight || h.compete_fight_count > 0 {
+        if !race.input.analysis_options.dueling || h.is_compete_fight || h.compete_fight_count > 0 {
             continue;
         }
         let partner = h.compete_fight_near.iter().map(|&k| h.ai.around_horses[k]).find(|a| {

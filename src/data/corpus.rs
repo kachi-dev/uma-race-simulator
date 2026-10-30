@@ -192,6 +192,7 @@ pub fn parse_race(json: &str) -> Result<(RaceInput, Replay), String> {
         race_type: enum_val(&v.race_type, "raceType", RACE_TYPE)?,
         horses,
         race_instance_id: v.race_instance_master.id,
+        analysis_options: Default::default(),
     };
     Ok((input, replay))
 }

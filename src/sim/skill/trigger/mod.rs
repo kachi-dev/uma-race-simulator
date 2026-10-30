@@ -254,7 +254,7 @@ fn check_activate(race: &mut Race, r: SkillDetailRef, t: &mut SkillTrigger, othe
                 if !(p.ActivatePerMin as f32 <= per) {
                     per = p.ActivatePerMin as f32;
                 }
-                *is_lot_ok = rnd < per;
+                *is_lot_ok = rnd < per || race.input.analysis_options.skill_wiz_check == crate::api::SkillWizCheck::AlwaysPass;
                 return *is_lot_ok;
             }
             false
@@ -663,6 +663,35 @@ mod tests {
     use crate::sim::skill::trigger::kind::order_type;
     use crate::data::{DataEra, GameData};
     use std::path::Path;
+
+    #[test]
+    fn always_pass_only_overrides_periodic_wit_result() {
+        let normal = crate::sim::test_util::input(1);
+        let mut forced = normal.clone();
+        forced.analysis_options.skill_wiz_check = crate::SkillWizCheck::AlwaysPass;
+        let r = SkillDetailRef { horse: 0, skill: 0, detail: 0 };
+        let mut failures = 0;
+        for seed in 0..32 {
+            let mut a = crate::sim::test_util::skill_race(&normal, seed);
+            let mut b = crate::sim::test_util::skill_race(&forced, seed);
+            for race in [&mut a, &mut b] { race.horses[0].horse_data.race_param.base_wiz = 1.0; }
+            let mut ta = create_trigger(&mut a, r, "random_lot_other_activate", SkillTriggerOperator::Equal, 1).unwrap();
+            let mut tb = ta.clone();
+            let before = b.rng.draws();
+            assert!(!check_activate(&mut b, r, &mut tb, false));
+            assert_eq!(b.rng.draws(), before);
+            failures += usize::from(!check_activate(&mut a, r, &mut ta, true));
+            assert!(check_activate(&mut b, r, &mut tb, true));
+            assert_eq!(a.rng.draws(), b.rng.draws());
+            assert_eq!(a.rng.random_float(100.0).to_bits(), b.rng.random_float(100.0).to_bits());
+            assert!(check_activate(&mut b, r, &mut tb, true));
+            assert!(!check_activate(&mut b, r, &mut tb, false));
+            assert!(!check_activate(&mut b, r, &mut tb, true)); // interval still running
+            let mut random = create_trigger(&mut b, r, "random_lot", SkillTriggerOperator::Equal, 0).unwrap();
+            assert!(!check_activate(&mut b, r, &mut random, true));
+        }
+        assert!(failures > 0);
+    }
 
     #[test]
     fn never_true_fixed_terms() {
