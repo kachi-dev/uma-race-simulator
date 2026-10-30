@@ -76,3 +76,14 @@ pub fn skill_race(input: &RaceInput, seed: i32) -> Race<'_> {
     }
     bare_race(data(), input, seed, horses)
 }
+
+#[test]
+fn morioka_2000_simulates_to_finish() {
+    let input = RaceInput { course_set_id: 11504, random_seed: 104729, ground_condition: 2, weather: 2, season: 4, time: 2, race_type: 5, horses: (0..9).map(|i| crate::HorseInput { speed: 1600, stamina: 1200, pow: 1200, guts: 600, wiz: 1200, running_style: i % 4 + 1, motivation: 5, proper_distance: [7;4], proper_running_style: [7;4], proper_ground: [7;2], frame_order: i+1, popularity: i+1, ..Default::default() }).collect(), ..Default::default() };
+    let output = crate::sim::simulate(&input, data());
+    assert_eq!(output.results.len(), 9);
+    assert!(output.results.iter().all(|r| r.finish_time_raw.is_finite() && r.finish_time_raw > 0.0));
+    assert_eq!(output.frames.last().unwrap().horses.len(), 9);
+    assert!(output.frames.last().unwrap().horses.iter().all(|h| h.distance >= 2000.0));
+}
+
