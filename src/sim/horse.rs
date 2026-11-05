@@ -81,12 +81,16 @@ impl HorseData {
 /// Oonige = a Nige with any skill holding a RunningStyleExOonige (type 6) ability slot.
 pub fn running_style_ex(skills: &HashMap<i32, SkillData>, input: &HorseInput) -> RunningStyleEx {
     let oonige = input.running_style == RunningStyle::Nige as i32
-        && input.skills.iter().filter_map(|s| skills.get(&s.skill_id)).any(|s| s.details.iter().flat_map(|d| &d.abilities).any(|a| a.ability_type == 6));
+        && input
+            .skills
+            .iter()
+            .filter(|s| !input.is_silent_skill(s.skill_id))
+            .filter_map(|s| skills.get(&s.skill_id))
+            .any(|s| s.details.iter().flat_map(|d| &d.abilities).any(|a| a.ability_type == 6));
     if oonige { RunningStyleEx::Oonige } else { RunningStyleEx::None }
 }
 
-/// A horse's live race state. References to other horses are horse indices; references to around-horse entries
-/// are indices into `ai.around_horses`.
+/// A horse's live race state. References to other horses are horse indices.
 #[derive(Clone, Debug, Default)]
 pub struct Horse {
     pub horse_data: HorseData,
@@ -188,7 +192,7 @@ pub struct Horse {
     pub is_compete_fight: bool,
     pub compete_fight_count: i32,
     pub compete_fight_group: i32,
-    /// Indices into `ai.around_horses`.
+    /// Horse indices.
     pub compete_fight_near: Vec<usize>,
     pub is_compete_top: bool,
     pub compete_top_count: i32,
